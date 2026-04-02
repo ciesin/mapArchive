@@ -158,11 +158,11 @@ export const MOCK_ITEM_SUMMARIES: ItemSummary[] = MOCK_ITEMS.map((item) => ({
 }));
 
 /** Get unique themes from mock data */
-export function getMockThemes(): string[] {
+export function getThemes(): string[] {
   return [...new Set(MOCK_ITEMS.map((i) => i.properties.theme).filter(Boolean) as string[])];
 }
 
 /** Get unique admin0 codes from mock data */
-export function getMockAdmin0Codes(): string[] {
+export function getAdmin0Codes(): string[] {
   return [...new Set(MOCK_ITEMS.map((i) => i.properties.admin0).filter(Boolean) as string[])];
 }

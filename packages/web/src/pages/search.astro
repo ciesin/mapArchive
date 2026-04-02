@@ -6,7 +6,7 @@ import SearchBar from '../components/SearchBar.astro';
 import FilterPanel from '../components/FilterPanel.astro';
 import MapCard from '../components/MapCard.astro';
 import Pagination from '../components/Pagination.astro';
-import { MOCK_ITEMS, getMockThemes, getMockAdmin0Codes } from '../lib/mock-data';
+import { MOCK_ITEMS, getThemes, getAdmin0Codes } from '../lib/mock-data';
 
 const url = Astro.url;
 const q = url.searchParams.get('q') ?? '';
@@ -50,8 +50,8 @@ if (selectedAdmin0) extraParams.admin0 = selectedAdmin0;
     <form method="get" action="/search" class="search-layout" style="margin-top: 1.5rem;">
       <input type="hidden" name="q" value={q} />
       <FilterPanel
-        themes={getMockThemes()}
-        admin0Codes={getMockAdmin0Codes()}
+        themes={getThemes()}
+        admin0Codes={getAdmin0Codes()}
         selectedTheme={selectedTheme}
         selectedAdmin0={selectedAdmin0}
       />

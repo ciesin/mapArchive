@@ -1,0 +1,22 @@
+---
+interface BreadcrumbSegment {
+  label: string;
+  href?: string;
+}
+
+interface Props {
+  segments: BreadcrumbSegment[];
+}
+
+const { segments } = Astro.props;
+---
+
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <a href="/">Home</a>
+  {segments.map((seg) => (
+    <>
+      <span aria-hidden="true">/</span>
+      {seg.href ? <a href={seg.href}>{seg.label}</a> : <span>{seg.label}</span>}
+    </>
+  ))}
+</nav>

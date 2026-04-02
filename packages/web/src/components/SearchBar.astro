@@ -1,0 +1,29 @@
+---
+interface Props {
+  value?: string;
+  action?: string;
+}
+
+const { value = '', action = '/search' } = Astro.props;
+---
+
+<form method="get" action={action} class="search-form">
+  <input
+    type="search"
+    name="q"
+    class="search-input"
+    placeholder="Search maps by keyword, location, theme..."
+    value={value}
+  />
+  <button type="submit" class="btn btn-primary">Search</button>
+</form>
+
+<style>
+  .search-form {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .search-form .search-input {
+    flex: 1;
+  }
+</style>

@@ -1,0 +1,94 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import CatalogBreadcrumb from '../../components/CatalogBreadcrumb.astro';
+import MapViewer from '../../components/MapViewer.astro';
+import { MOCK_ITEMS, MOCK_COLLECTIONS } from '../../lib/mock-data';
+
+const { id } = Astro.params;
+const item = MOCK_ITEMS.find((i) => i.id === id);
+
+if (!item) {
+  return Astro.redirect('/catalog');
+}
+
+const collection = MOCK_COLLECTIONS.find((c) => c.id === item.collection);
+const theme = item.properties.theme as string;
+const admin0 = item.properties.admin0 as string;
+const assetHref = item.assets.original?.href ?? '';
+---
+
+<BaseLayout title={item.properties.title} description={item.properties.description}>
+  <div class="container section">
+    <CatalogBreadcrumb segments={[
+      { label: 'Catalog', href: '/catalog' },
+      { label: collection?.title ?? theme, href: `/theme/${theme}` },
+      { label: admin0, href: `/theme/${theme}/${admin0}` },
+      { label: item.properties.title },
+    ]} />
+
+    <h1 class="map-title">{item.properties.title}</h1>
+
+    <div class="map-meta">
+      <span class={`badge badge-${theme}`}>{theme}</span>
+      <span class="meta-item">{admin0}</span>
+      {item.properties.area && <span class="meta-item">{item.properties.area}</span>}
+      {item.properties.datetime && (
+        <span class="meta-item">{new Date(item.properties.datetime).toLocaleDateString()}</span>
+      )}
+    </div>
+
+    {item.properties.description && (
+      <p class="map-description">{item.properties.description}</p>
+    )}
+
+    <MapViewer assetHref={assetHref} title={item.properties.title} />
+
+    <details class="stac-details">
+      <summary>STAC Metadata (JSON)</summary>
+      <pre><code>{JSON.stringify(item, null, 2)}</code></pre>
+    </details>
+  </div>
+</BaseLayout>
+
+<style>
+  .map-title {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+  }
+  .map-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  .meta-item {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+  }
+  .map-description {
+    color: var(--color-text-muted);
+    margin-bottom: 1.5rem;
+    max-width: 700px;
+  }
+  .stac-details {
+    margin-top: 2rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+  }
+  .stac-details summary {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+  .stac-details pre {
+    padding: 1rem;
+    overflow-x: auto;
+    font-size: 0.8125rem;
+    background: var(--color-bg);
+    border-top: 1px solid var(--color-border);
+  }
+</style>

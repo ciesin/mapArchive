@@ -1,0 +1,53 @@
+---
+interface Props {
+  themes: string[];
+  admin0Codes: string[];
+  selectedTheme?: string;
+  selectedAdmin0?: string;
+}
+
+const { themes, admin0Codes, selectedTheme = '', selectedAdmin0 = '' } = Astro.props;
+---
+
+<aside class="filter-panel">
+  <h3 class="filter-heading">Filters</h3>
+
+  <div class="filter-group">
+    <label for="filter-theme">Theme</label>
+    <select name="theme" id="filter-theme">
+      <option value="">All themes</option>
+      {themes.map((t) => (
+        <option value={t} selected={t === selectedTheme}>{t}</option>
+      ))}
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label for="filter-admin0">Country (Admin0)</label>
+    <select name="admin0" id="filter-admin0">
+      <option value="">All countries</option>
+      {admin0Codes.map((c) => (
+        <option value={c} selected={c === selectedAdmin0}>{c}</option>
+      ))}
+    </select>
+  </div>
+
+  <button type="submit" class="btn btn-primary" style="width: 100%;">Apply Filters</button>
+</aside>
+
+<style>
+  .filter-panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1rem;
+  }
+  .filter-heading {
+    font-size: 0.875rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+  }
+</style>

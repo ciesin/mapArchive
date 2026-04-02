@@ -1,0 +1,44 @@
+---
+interface Props {
+  total: number;
+  limit: number;
+  offset: number;
+  baseUrl: string;
+  extraParams?: Record<string, string>;
+}
+
+const { total, limit, offset, baseUrl, extraParams = {} } = Astro.props;
+
+const currentPage = Math.floor(offset / limit) + 1;
+const totalPages = Math.ceil(total / limit);
+
+function buildUrl(page: number): string {
+  const params = new URLSearchParams(extraParams);
+  params.set('limit', String(limit));
+  params.set('offset', String((page - 1) * limit));
+  return `${baseUrl}?${params.toString()}`;
+}
+---
+
+{totalPages > 1 && (
+  <nav class="pagination" aria-label="Pagination">
+    {currentPage > 1 && (
+      <a href={buildUrl(currentPage - 1)} class="btn">Previous</a>
+    )}
+    <span class="pagination-info">
+      Page {currentPage} of {totalPages} ({total} results)
+    </span>
+    {currentPage < totalPages && (
+      <a href={buildUrl(currentPage + 1)} class="btn">Next</a>
+    )}
+  </nav>
+)}
+
+<style>
+  .pagination-info {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+  }
+</style>

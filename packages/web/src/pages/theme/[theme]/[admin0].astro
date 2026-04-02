@@ -1,0 +1,58 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import CatalogBreadcrumb from '../../../components/CatalogBreadcrumb.astro';
+import MapCard from '../../../components/MapCard.astro';
+import { MOCK_COLLECTIONS, MOCK_ITEMS } from '../../../lib/mock-data';
+
+const { theme, admin0 } = Astro.params;
+const collection = MOCK_COLLECTIONS.find((c) => c.id === theme);
+
+if (!collection) {
+  return Astro.redirect('/catalog');
+}
+
+const items = MOCK_ITEMS.filter(
+  (i) => i.collection === theme && i.properties.admin0 === admin0,
+);
+---
+
+<BaseLayout title={`${admin0} - ${collection.title}`}>
+  <div class="container section">
+    <CatalogBreadcrumb segments={[
+      { label: 'Catalog', href: '/catalog' },
+      { label: collection.title, href: `/theme/${theme}` },
+      { label: admin0! },
+    ]} />
+
+    <h1 class="section-title">{admin0} &mdash; {collection.title}</h1>
+
+    <div class="card-grid">
+      {items.map((item) => (
+        <MapCard
+          id={item.id}
+          title={item.properties.title}
+          description={item.properties.description}
+          theme={item.properties.theme as string}
+          admin0={item.properties.admin0 as string}
+          area={item.properties.area as string}
+          datetime={item.properties.datetime}
+          assetHref={item.assets.original?.href}
+        />
+      ))}
+    </div>
+
+    {items.length === 0 && (
+      <p class="empty-state">No maps found for {admin0} in {collection.title}.</p>
+    )}
+  </div>
+</BaseLayout>
+
+<style>
+  .empty-state {
+    color: var(--color-text-muted);
+    padding: 3rem 0;
+    text-align: center;
+  }
+</style>

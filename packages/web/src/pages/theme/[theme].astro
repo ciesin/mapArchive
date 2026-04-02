@@ -1,0 +1,91 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import CatalogBreadcrumb from '../../components/CatalogBreadcrumb.astro';
+import MapCard from '../../components/MapCard.astro';
+import { MOCK_COLLECTIONS, MOCK_ITEMS } from '../../lib/mock-data';
+
+const { theme } = Astro.params;
+const collection = MOCK_COLLECTIONS.find((c) => c.id === theme);
+
+if (!collection) {
+  return Astro.redirect('/catalog');
+}
+
+const items = MOCK_ITEMS.filter((i) => i.collection === theme);
+
+// Group items by admin0
+const admin0Groups = new Map<string, typeof items>();
+for (const item of items) {
+  const a0 = (item.properties.admin0 as string) ?? 'Unknown';
+  if (!admin0Groups.has(a0)) admin0Groups.set(a0, []);
+  admin0Groups.get(a0)!.push(item);
+}
+---
+
+<BaseLayout title={collection.title} description={collection.description}>
+  <div class="container section">
+    <CatalogBreadcrumb segments={[
+      { label: 'Catalog', href: '/catalog' },
+      { label: collection.title },
+    ]} />
+
+    <h1 class="section-title">{collection.title}</h1>
+    <p class="theme-desc">{collection.description}</p>
+
+    {[...admin0Groups.entries()].map(([admin0, groupItems]) => (
+      <section class="admin0-group">
+        <h2 class="admin0-heading">
+          <a href={`/theme/${theme}/${admin0}`}>{admin0}</a>
+          <span class="item-count">{groupItems.length} maps</span>
+        </h2>
+        <div class="card-grid">
+          {groupItems.map((item) => (
+            <MapCard
+              id={item.id}
+              title={item.properties.title}
+              description={item.properties.description}
+              theme={item.properties.theme as string}
+              admin0={item.properties.admin0 as string}
+              area={item.properties.area as string}
+              datetime={item.properties.datetime}
+              assetHref={item.assets.original?.href}
+            />
+          ))}
+        </div>
+      </section>
+    ))}
+
+    {items.length === 0 && (
+      <p class="empty-state">No maps in this collection yet.</p>
+    )}
+  </div>
+</BaseLayout>
+
+<style>
+  .theme-desc {
+    color: var(--color-text-muted);
+    margin-bottom: 2rem;
+  }
+  .admin0-group {
+    margin-bottom: 2rem;
+  }
+  .admin0-heading {
+    font-size: 1.125rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .item-count {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    font-weight: 400;
+  }
+  .empty-state {
+    color: var(--color-text-muted);
+    padding: 3rem 0;
+    text-align: center;
+  }
+</style>

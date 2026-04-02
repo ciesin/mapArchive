@@ -1,0 +1,89 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = 'mapArchive', description = 'Searchable archive of high-resolution maps' } = Astro.props;
+const pageTitle = title === 'mapArchive' ? title : `${title} | mapArchive`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{pageTitle}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <nav class="nav">
+      <div class="container nav-inner">
+        <a href="/" class="nav-brand">mapArchive</a>
+        <div class="nav-links">
+          <a href="/catalog">Catalog</a>
+          <a href="/search">Search</a>
+          <a href="/about">About</a>
+        </div>
+      </div>
+    </nav>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>CIESIN &middot; Columbia University</p>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style>
+  .nav {
+    height: var(--nav-height);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+  }
+  .nav-brand {
+    font-weight: 700;
+    font-size: 1.125rem;
+    color: var(--color-text);
+  }
+  .nav-brand:hover {
+    text-decoration: none;
+  }
+  .nav-links {
+    display: flex;
+    gap: 1.5rem;
+  }
+  .nav-links a {
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+  }
+  .nav-links a:hover {
+    color: var(--color-text);
+    text-decoration: none;
+  }
+  .footer {
+    border-top: 1px solid var(--color-border);
+    padding: 1.5rem 0;
+    margin-top: 3rem;
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+    text-align: center;
+  }
+</style>

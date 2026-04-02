@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.astro/
+
+# Cloudflare
+.wrangler/
+.dev.vars
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+*.egg
+
+# Pipeline output (generated STAC JSON)
+packages/pipeline/output/*
+!packages/pipeline/output/.gitkeep
+
+# Environment / credentials
+.env
+.env.*
+!.env.example
+credentials.json
+service-account-key.json
+*.pem
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

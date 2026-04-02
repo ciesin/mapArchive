@@ -1,0 +1,55 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="About" description="About the mapArchive project">
+  <div class="container section">
+    <h1 class="section-title">About mapArchive</h1>
+
+    <div class="about-content">
+      <p>
+        <strong>mapArchive</strong> is a searchable digital archive of high-resolution maps
+        maintained by the <a href="https://www.ciesin.columbia.edu/">Center for International
+        Earth Science Information Network (CIESIN)</a> at Columbia University.
+      </p>
+
+      <h2>STAC Specification</h2>
+      <p>
+        All maps in this archive are cataloged using the
+        <a href="https://stacspec.org/">SpatioTemporal Asset Catalog (STAC)</a> specification,
+        enabling interoperability with the broader geospatial data ecosystem. Each map is a
+        STAC Item with standardized metadata including spatial extent, temporal coverage, and
+        thematic classification.
+      </p>
+
+      <h2>Collections</h2>
+      <p>
+        Maps are organized into thematic collections (e.g., climate, population, land use)
+        and can be browsed by country (admin0 level) or searched by keyword, location, and
+        date range.
+      </p>
+
+      <h2>Data Access</h2>
+      <p>
+        Map images are served via Cloudflare's global network for fast access worldwide.
+        The STAC metadata is available through both the web interface and a programmatic
+        API for integration into data science workflows.
+      </p>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .about-content {
+    max-width: 700px;
+  }
+  .about-content p {
+    margin-bottom: 1rem;
+    line-height: 1.7;
+  }
+  .about-content h2 {
+    font-size: 1.25rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+</style>

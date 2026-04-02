@@ -1,0 +1,103 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import SearchBar from '../components/SearchBar.astro';
+import FilterPanel from '../components/FilterPanel.astro';
+import MapCard from '../components/MapCard.astro';
+import Pagination from '../components/Pagination.astro';
+import { MOCK_ITEMS, getMockThemes, getMockAdmin0Codes } from '../lib/mock-data';
+
+const url = Astro.url;
+const q = url.searchParams.get('q') ?? '';
+const selectedTheme = url.searchParams.get('theme') ?? '';
+const selectedAdmin0 = url.searchParams.get('admin0') ?? '';
+const limit = parseInt(url.searchParams.get('limit') ?? '20', 10);
+const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
+
+// Filter mock data (in production, this queries D1 via db.ts)
+let filtered = [...MOCK_ITEMS];
+if (q) {
+  const lower = q.toLowerCase();
+  filtered = filtered.filter(
+    (i) =>
+      i.properties.title.toLowerCase().includes(lower) ||
+      (i.properties.description ?? '').toLowerCase().includes(lower) ||
+      (i.properties.area as string ?? '').toLowerCase().includes(lower),
+  );
+}
+if (selectedTheme) {
+  filtered = filtered.filter((i) => i.properties.theme === selectedTheme);
+}
+if (selectedAdmin0) {
+  filtered = filtered.filter((i) => i.properties.admin0 === selectedAdmin0);
+}
+
+const total = filtered.length;
+const paged = filtered.slice(offset, offset + limit);
+
+const extraParams: Record<string, string> = {};
+if (q) extraParams.q = q;
+if (selectedTheme) extraParams.theme = selectedTheme;
+if (selectedAdmin0) extraParams.admin0 = selectedAdmin0;
+---
+
+<BaseLayout title="Search" description="Search the map archive">
+  <div class="container section">
+    <h1 class="section-title">Search Maps</h1>
+    <SearchBar value={q} />
+
+    <form method="get" action="/search" class="search-layout" style="margin-top: 1.5rem;">
+      <input type="hidden" name="q" value={q} />
+      <FilterPanel
+        themes={getMockThemes()}
+        admin0Codes={getMockAdmin0Codes()}
+        selectedTheme={selectedTheme}
+        selectedAdmin0={selectedAdmin0}
+      />
+
+      <div>
+        <p class="results-count">{total} result{total !== 1 ? 's' : ''} found</p>
+        <div class="card-grid">
+          {paged.map((item) => (
+            <MapCard
+              id={item.id}
+              title={item.properties.title}
+              description={item.properties.description}
+              theme={item.properties.theme as string}
+              admin0={item.properties.admin0 as string}
+              area={item.properties.area as string}
+              datetime={item.properties.datetime}
+              assetHref={item.assets.original?.href}
+            />
+          ))}
+        </div>
+
+        {paged.length === 0 && (
+          <p class="empty-state">No maps match your search criteria.</p>
+        )}
+
+        <Pagination
+          total={total}
+          limit={limit}
+          offset={offset}
+          baseUrl="/search"
+          extraParams={extraParams}
+        />
+      </div>
+    </form>
+  </div>
+</BaseLayout>
+
+<style>
+  .results-count {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    margin-bottom: 1rem;
+  }
+  .empty-state {
+    color: var(--color-text-muted);
+    padding: 3rem 0;
+    text-align: center;
+  }
+</style>

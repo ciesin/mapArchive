@@ -97,3 +97,35 @@ def sync(manifest: str, output: str, local_dir: str):
     click.echo("[3/3] Ingesting catalog into D1...")
     cols, items = ingest_catalog(output)
     click.echo(f"Done: {cols} collections, {items} items synced")
+
+
+@main.command()
+@click.option("--folder-id", required=True, help="Google Drive folder ID to scan.")
+@click.option(
+    "--creds",
+    default="scripts/misc/analytics/scripts/drive_credentials.json",
+    type=click.Path(),
+    help="Path to OAuth client credentials JSON.",
+)
+@click.option("--output", "-o", default=None, type=click.Path(), help="Output CSV path.")
+@click.option("--shared-drive-id", default=None, help="Shared drive ID (if applicable).")
+@click.option("--filter-text", default=None, help="Only include files whose name contains this text.")
+@click.option("--filter-admin0", default=None, help="Only include files matching this admin0 code.")
+@click.option("--filter-usecase", default=None, help="Only include files matching this useCase.")
+@click.option("--no-normalize", is_flag=True, help="Keep original admin0 codes (skip ISO normalization).")
+@click.option("--dry-run", is_flag=True, help="Scan and print stats without writing CSV.")
+def generate(folder_id, creds, output, shared_drive_id, filter_text, filter_admin0, filter_usecase, no_normalize, dry_run):
+    """Generate a manifest CSV by scanning a Google Drive folder."""
+    from .generate_manifest import run_generate
+
+    run_generate(
+        folder_id=folder_id,
+        creds_file=creds,
+        output=output,
+        shared_drive_id=shared_drive_id,
+        filter_text=filter_text,
+        filter_admin0=filter_admin0,
+        filter_usecase=filter_usecase,
+        no_normalize=no_normalize,
+        dry_run=dry_run,
+    )

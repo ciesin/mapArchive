@@ -10,12 +10,14 @@ dependencies = [
     "boto3>=1.34.0",
     "google-api-python-client>=2.0.0",
     "google-auth>=2.0.0",
+    "google-auth-oauthlib>=1.0.0",
+    "pycountry>=24.6.1",
     "requests>=2.31.0",
     "python-dotenv>=1.0.0",
 ]
 
 [project.scripts]
-maparchive = "maparchive_pipeline.cli:main"
+archive = "maparchive_pipeline.cli:main"
 
 [dependency-groups]
 dev = ["pytest>=8.0.0"]
@@ -26,3 +28,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+maparchive_pipeline = ["data/*.json"]

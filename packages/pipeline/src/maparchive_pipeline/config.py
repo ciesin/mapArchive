@@ -33,6 +33,9 @@ CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", R2_ACCOUNT_ID)
 D1_DATABASE_ID = os.getenv("D1_DATABASE_ID", "")
 
+# rclone
+RCLONE_REMOTE = os.getenv("RCLONE_REMOTE", "")
+
 # Pipeline defaults
 DEFAULT_OUTPUT_DIR = PIPELINE_ROOT / "output"
 STAC_VERSION = "1.1.0"

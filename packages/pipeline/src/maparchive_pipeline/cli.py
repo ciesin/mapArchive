@@ -40,14 +40,54 @@ def build(manifest: str, output: str):
 @main.command()
 @click.option("--manifest", "-m", required=True, type=click.Path(exists=True))
 @click.option("--local-dir", "-d", required=True, type=click.Path(exists=True))
-def upload(manifest: str, local_dir: str):
-    """Upload map files to Cloudflare R2."""
-    from .r2_upload import upload_manifest_files
+@click.option("--rclone", "use_rclone", is_flag=True, default=False,
+              help="Use rclone for bulk upload instead of boto3.")
+@click.option("--rclone-remote", default=None,
+              help="rclone remote name (overrides RCLONE_REMOTE in .env).")
+@click.option("--transfers", default=32, show_default=True,
+              help="Number of parallel transfers (rclone only).")
+@click.option("--dry-run", is_flag=True,
+              help="Show what would be uploaded without transferring (rclone only).")
+@click.option("--r2-prefix", default="maps", show_default=True,
+              help="Key prefix (subdirectory) within the R2 bucket.")
+def upload(manifest: str, local_dir: str, use_rclone: bool, rclone_remote, transfers, dry_run, r2_prefix):
+    """Upload map files to Cloudflare R2.
 
-    rows = load_manifest(manifest)
-    click.echo(f"Uploading {len(rows)} files to R2...")
-    keys = upload_manifest_files(rows, local_dir)
-    click.echo(f"  {len(keys)} files uploaded")
+    By default uses boto3 (per-file, good for small/incremental uploads).
+    Pass --rclone for bulk uploads — parallel transfers, automatic skip of
+    already-uploaded files.
+    """
+    if use_rclone:
+        from .rclone_upload import rclone_copy
+        rclone_copy(
+            local_dir,
+            remote_name=rclone_remote,
+            transfers=transfers,
+            dry_run=dry_run,
+            r2_prefix=r2_prefix,
+        )
+    else:
+        from .r2_upload import upload_manifest_files
+        rows = load_manifest(manifest)
+        click.echo(f"Uploading {len(rows)} files to R2...")
+        keys = upload_manifest_files(rows, local_dir)
+        click.echo(f"  {len(keys)} files uploaded")
+
+
+@main.command("setup-rclone")
+@click.option("--remote-name", default=None,
+              help="rclone remote name to create (overrides RCLONE_REMOTE in .env).")
+@click.option("--overwrite", is_flag=True,
+              help="Replace existing remote if it already exists.")
+def setup_rclone(remote_name, overwrite):
+    """Bootstrap an rclone R2 remote from .env credentials.
+
+    Reads R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET_NAME
+    from your .env and writes a named remote to ~/.config/rclone/rclone.conf.
+    Safe to re-run.
+    """
+    from .rclone_upload import setup_remote
+    setup_remote(remote_name=remote_name, overwrite=overwrite)
 
 
 @main.command()

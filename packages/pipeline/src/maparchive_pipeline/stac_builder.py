@@ -97,6 +97,13 @@ def _build_item(row: ManifestRow) -> pystac.Item:
     except ValueError:
         dt = None
 
+    # Build admin properties dict — only include non-empty levels
+    admin_props = {
+        f"admin{i}": val
+        for i, val in enumerate([row.admin0, row.admin1, row.admin2, row.admin3, row.admin4])
+        if val
+    }
+
     item = pystac.Item(
         id=row.item_id,
         geometry=geometry,
@@ -105,8 +112,8 @@ def _build_item(row: ManifestRow) -> pystac.Item:
         properties={
             "title": row.title,
             "description": row.description,
-            "admin0": row.admin0,
-            "area": row.area,
+            **admin_props,
+            "page_size": row.page_size,
             "theme": row.theme,
             "keywords": row.keyword_list,
             "source_attribution": row.source_attribution,

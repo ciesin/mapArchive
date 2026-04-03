@@ -39,13 +39,19 @@ with open(_DATA_DIR / "admin0_bbox.json") as _f:
 # Unmapped useCases fall through as-is (lowercased, hyphens stripped).
 USECASE_TO_THEME = {
     "comprehensive-dtp1": "comprehensive",
-    "comprehensive-dtp2": "comprehensive",
+    "comprehensive-dtp": "comprehensive",
+    "comprehensive-var1": "comprehensive",
+    "comprehensive-var": "comprehensive",
     "comprehensive": "comprehensive",
-    "climate": "climate",
-    "population": "population",
-    "health": "health",
-    "infrastructure": "infrastructure",
-    "settlement": "population",
+    "reference": "reference",
+    "microplanification": "microplanning",
+    "reference-minimal-zonesante": "reference-minimal",
+    "reference-minimal-province": "reference-minimal",
+    "reference-minimal-antenne": "reference-minimal",
+    "reference-zs": "reference",
+    "reference-antenne": "reference",
+    "reference-province": "reference",
+    "a": "reference"
 }
 
 # Folder names containing these substrings (case-insensitive) are skipped.
@@ -70,41 +76,42 @@ def parse_filename(filename):
     """
     Parse structured filename into metadata components.
 
-    Expected: {pageSize}_{useCase}_{admin0}_{admin1}_{admin2}_{admin3}_{admin4}_{pageNum}_{date}.{ext}
-    Returns a dict with parsed fields, or None values if parsing fails.
+    Convention (fixed anchors, variable admin nesting in the middle):
+      {pageSize}_{useCase}_{admin0}[_{admin1}[_{admin2}[_{admin3}[_{admin4]]]]_{pageNum}_{date}.{ext}
+
+    Valid part counts: 5 (admin0 only) through 9 (admin0–admin4).
+    Files outside this range are treated as unparseable.
     """
+    _empty = {
+        "page_size": None, "use_case": None,
+        "admin0": None, "admin1": None, "admin2": None,
+        "admin3": None, "admin4": None,
+        "page_num": None, "raw_date": None,
+        "parsed": False,
+    }
     try:
         name_without_ext = filename.rsplit(".", 1)[0]
         parts = name_without_ext.split("_")
 
-        if len(parts) >= 9:
-            return {
-                "page_size": parts[0],
-                "use_case": parts[1],
-                "admin0": parts[2],
-                "admin1": parts[3],
-                "admin2": parts[4],
-                "admin3": parts[5],
-                "admin4": parts[6],
-                "page_num": parts[7],
-                "raw_date": parts[8],
-                "parsed": True,
-            }
-    except Exception:
-        pass
+        # 5 = minimum (page_size, use_case, admin0, page_num, raw_date)
+        # 9 = maximum (adds admin1–admin4)
+        if not (5 <= len(parts) <= 9):
+            return _empty
 
-    return {
-        "page_size": None,
-        "use_case": None,
-        "admin0": None,
-        "admin1": None,
-        "admin2": None,
-        "admin3": None,
-        "admin4": None,
-        "page_num": None,
-        "raw_date": None,
-        "parsed": False,
-    }
+        admin_parts = parts[2:-2]   # everything between use_case and page_num
+        admin_levels = {f"admin{i}": admin_parts[i] if i < len(admin_parts) else None
+                        for i in range(5)}
+
+        return {
+            "page_size": parts[0],
+            "use_case": parts[1],
+            **admin_levels,
+            "page_num": parts[-2],
+            "raw_date": parts[-1],
+            "parsed": True,
+        }
+    except Exception:
+        return _empty
 
 
 # ---------------------------------------------------------------------------
@@ -191,22 +198,23 @@ def build_manifest_row(drive_file, parsed, normalize_admin0=True):
     date = _format_date(parsed["raw_date"])
     bbox = resolve_bbox(admin0)
 
-    area = _format_admin(parsed["admin1"])
+    # Format all present admin levels (admin0 already resolved above)
+    admins = {
+        f"admin{i}": _format_admin(parsed[f"admin{i}"]) if i > 0 else admin0
+        for i in range(5)
+    }
+    # Present levels in order, innermost first for title
+    present_inner = [admins[f"admin{i}"] for i in range(4, -1, -1) if admins[f"admin{i}"]]
+    present_outer = [admins[f"admin{i}"] for i in range(5) if admins[f"admin{i}"]]
 
-    # Build title: "Comprehensive Dtp1 — Kiete, Katako-Kombe, Lodja, Sankuru, DR Congo (2025)"
-    admin_parts = [
-        _format_admin(parsed[k])
-        for k in ("admin4", "admin3", "admin2", "admin1")
-        if parsed.get(k)
-    ]
-    location_str = ", ".join(admin_parts) if admin_parts else country_name
+    location_str = ", ".join(present_inner) if len(present_inner) > 1 else (present_inner[0] if present_inner else country_name)
     year = date[:4] if date else ""
     use_label = (parsed["use_case"] or theme).replace("-", " ").title()
+
     title = f"{use_label} — {location_str}, {country_name}"
     if year:
         title += f" ({year})"
 
-    # Build description
     desc_parts = [f"{use_label} map"]
     if location_str:
         desc_parts.append(f"covering {location_str}, {country_name}")
@@ -216,22 +224,24 @@ def build_manifest_row(drive_file, parsed, normalize_admin0=True):
         desc_parts.append(f"(page {parsed['page_num']})")
     description = " ".join(desc_parts) + "."
 
-    # Keywords from admin levels, theme, and useCase
     kw = {theme}
     if parsed["use_case"]:
         kw.add(parsed["use_case"].lower().replace("-", " "))
-    for level in ("admin0", "admin1", "admin2", "admin3", "admin4"):
-        val = parsed.get(level)
-        if val:
-            kw.add(val.lower())
+    for lvl in present_outer:
+        kw.add(lvl.lower())
     keywords = ",".join(sorted(kw))
 
     return {
         "drive_file_id": drive_file["id"],
         "filename": drive_file["name"],
         "theme": theme,
+        "page_size": parsed.get("page_size") or "",
+        "page_num": parsed.get("page_num") or "",
         "admin0": admin0,
-        "area": area,
+        "admin1": admins["admin1"],
+        "admin2": admins["admin2"],
+        "admin3": admins["admin3"],
+        "admin4": admins["admin4"],
         "title": title,
         "description": description,
         "date": date,
@@ -358,8 +368,13 @@ MANIFEST_FIELDS = [
     "drive_file_id",
     "filename",
     "theme",
+    "page_size",
+    "page_num",
     "admin0",
-    "area",
+    "admin1",
+    "admin2",
+    "admin3",
+    "admin4",
     "title",
     "description",
     "date",

@@ -1,7 +1,5 @@
 """Google Drive API client for downloading map files."""
 
-import io
-import os
 import pickle
 from pathlib import Path
 
@@ -73,7 +71,11 @@ def download_manifest_files(
     failed: list[str] = []
 
     for i, row in enumerate(manifest_rows, 1):
-        dest_path = dest_dir / row.theme / row.admin0 / row.area / row.filename
+        # Mirror the admin hierarchy: theme/admin0/admin1/.../filename
+        dest_path = dest_dir / row.theme
+        for admin in row.admin_path:
+            dest_path = dest_path / admin
+        dest_path = dest_path / row.filename
 
         if dest_path.exists():
             downloaded[row.drive_file_id] = dest_path

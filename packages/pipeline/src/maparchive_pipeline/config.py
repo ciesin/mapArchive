@@ -33,6 +33,11 @@ CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", R2_ACCOUNT_ID)
 D1_DATABASE_ID = os.getenv("D1_DATABASE_ID", "")
 
+# Cloudflare Images — zone base URL used to build absolute transform URLs in STAC assets
+# Must be the Cloudflare-proxied hostname, not the R2 direct URL.
+# e.g. "https://archive.ciesin.app"
+CF_IMAGES_ZONE = os.getenv("CF_IMAGES_ZONE", "")
+
 # rclone
 RCLONE_REMOTE = os.getenv("RCLONE_REMOTE", "")
 

@@ -61,10 +61,16 @@ class ManifestRow(BaseModel):
 
     @property
     def item_id(self) -> str:
-        """STAC item ID built from theme + full admin chain + filename stem."""
+        """STAC item ID: filename stem, which is unique and self-describing.
+
+        Strips the extension and replaces any characters that must be
+        percent-encoded in a URL with hyphens (spaces, brackets, etc.).
+        Underscores and hyphens are preserved — they're unreserved URI chars.
+        """
         stem = Path(self.filename).stem
-        admin_slug = "-".join(a.lower() for a in self.admin_path)
-        return f"{self.theme}-{admin_slug}-{stem}"
+        # Replace anything that isn't an unreserved URI character
+        import re
+        return re.sub(r"[^A-Za-z0-9\-._~]", "-", stem)
 
     @property
     def r2_key(self) -> str:

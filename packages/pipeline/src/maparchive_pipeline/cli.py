@@ -22,7 +22,7 @@ def main():
 )
 @click.option(
     "--output", "-o",
-    default=str(DEFAULT_OUTPUT_DIR),
+    default=str(DEFAULT_OUTPUT_DIR / "stac"),
     type=click.Path(),
     help="Output directory for STAC catalog JSON.",
 )
@@ -106,7 +106,7 @@ def download(manifest: str, dest_dir: str):
 @main.command()
 @click.option(
     "--catalog-dir", "-c",
-    default=str(DEFAULT_OUTPUT_DIR),
+    default=str(DEFAULT_OUTPUT_DIR / "stac"),
     type=click.Path(exists=True),
 )
 def ingest(catalog_dir: str):

@@ -65,10 +65,7 @@ def _ingest_collection(collection: pystac.Collection) -> None:
             collection.title or collection.id,
             collection.description,
             collection.license or "proprietary",
-            spatial[0],
-            spatial[1],
-            spatial[2],
-            spatial[3],
+            spatial[0], spatial[1], spatial[2], spatial[3],
             temporal[0].isoformat() if temporal[0] else None,
             temporal[1].isoformat() if temporal[1] else None,
             stac_json,
@@ -83,35 +80,36 @@ def _ingest_item(item: pystac.Item, collection_id: str) -> None:
     geometry_json = json.dumps(item.geometry) if item.geometry else None
     keywords = json.dumps(props.get("keywords", []))
     asset = item.assets.get("original")
-    asset_href = asset.href if asset else None
-    asset_type = asset.media_type if asset else None
     stac_json = json.dumps(item.to_dict())
 
     _d1_query(
         """INSERT OR REPLACE INTO items
            (id, collection_id, title, description, datetime,
-            bbox_west, bbox_south, bbox_east, bbox_north,
-            geometry_json, admin0, area, theme, keywords, license,
+            bbox_west, bbox_south, bbox_east, bbox_north, geometry_json,
+            admin0, admin1, admin2, admin3, admin4,
+            page_size, page_num, theme, keywords, license,
             asset_href, asset_type, stac_json)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         [
             item.id,
             collection_id,
             props.get("title", item.id),
             props.get("description"),
             item.datetime.isoformat() if item.datetime else None,
-            bbox[0],
-            bbox[1],
-            bbox[2],
-            bbox[3],
+            bbox[0], bbox[1], bbox[2], bbox[3],
             geometry_json,
             props.get("admin0"),
-            props.get("area"),
+            props.get("admin1"),
+            props.get("admin2"),
+            props.get("admin3"),
+            props.get("admin4"),
+            props.get("page_size"),
+            props.get("page_num"),
             props.get("theme"),
             keywords,
             props.get("license", "proprietary"),
-            asset_href,
-            asset_type,
+            asset.href if asset else None,
+            asset.media_type if asset else None,
             stac_json,
         ],
     )

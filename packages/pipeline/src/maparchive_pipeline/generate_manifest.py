@@ -50,8 +50,7 @@ USECASE_TO_THEME = {
     "reference-minimal-antenne": "reference-minimal",
     "reference-zs": "reference",
     "reference-antenne": "reference",
-    "reference-province": "reference",
-    "a": "reference"
+    "reference-province": "reference"
 }
 
 # Folder names containing these substrings (case-insensitive) are skipped.

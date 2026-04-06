@@ -163,13 +163,14 @@ def _build_item(row: ManifestRow) -> pystac.Item:
     if R2_PUBLIC_URL:
         asset_href = f"{R2_PUBLIC_URL}/{row.r2_key}"
 
+    # "data" = the file itself; "visual" = it is a visual/RGB rendering (not raw numeric data)
     item.add_asset(
         "original",
         pystac.Asset(
             href=asset_href,
             media_type=_guess_media_type(row.filename),
-            title="Original map image",
-            roles=["data"],
+            title="Original static map",
+            roles=["data", "visual"],
         ),
     )
 
@@ -177,23 +178,31 @@ def _build_item(row: ManifestRow) -> pystac.Item:
         item.add_asset(
             "thumbnail",
             pystac.Asset(
-                href=_cf_thumbnail_url(asset_href),
+                href=_cf_image_url(asset_href, "w=600,h=400,fit=scale-down,g=auto,f=auto"),
                 media_type="image/webp",
-                title="Thumbnail (400×300, webp)",
+                title="Thumbnail",
                 roles=["thumbnail"],
+            ),
+        )
+        item.add_asset(
+            "overview",
+            pystac.Asset(
+                href=_cf_image_url(asset_href, "w=1200,fit=scale-down,f=auto,q=85"),
+                media_type="image/webp",
+                title="Overview (1200px)",
+                roles=["overview"],
             ),
         )
 
     return item
 
 
-def _cf_thumbnail_url(asset_href: str) -> str:
-    """Build a Cloudflare Images transform URL for a 400×300 thumbnail.
+def _cf_image_url(asset_href: str, options: str) -> str:
+    """Build a Cloudflare Images transform URL.
 
     Pattern: {CF_IMAGES_ZONE}/cdn-cgi/image/<options>/<source-image-url>
-    Matches the getThumbnailUrl() convention in packages/web/src/lib/images.ts.
+    See: https://developers.cloudflare.com/images/transform-images/transform-via-url/
     """
-    options = "width=400,height=300,fit=cover,format=webp"
     return f"{CF_IMAGES_ZONE}/cdn-cgi/image/{options}/{asset_href}"
 
 

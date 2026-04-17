@@ -4,7 +4,7 @@ import click
 
 from .manifest import load_manifest
 from .stac_builder import build_catalog
-from .config import DEFAULT_OUTPUT_DIR
+from .config import DEFAULT_OUTPUT_DIR, PIPELINE_ROOT
 
 
 @click.group()
@@ -137,6 +137,44 @@ def sync(manifest: str, output: str, local_dir: str):
     click.echo("[3/3] Ingesting catalog into D1...")
     cols, items = ingest_catalog(output)
     click.echo(f"Done: {cols} collections, {items} items synced")
+
+
+@main.command()
+@click.option(
+    "--manifest", "-m",
+    required=True,
+    type=click.Path(exists=True),
+    help="Manifest CSV to enrich (output of `archive generate`).",
+)
+@click.option(
+    "--spatial-dir", "-s",
+    default=str(PIPELINE_ROOT / "input" / "spatial"),
+    type=click.Path(exists=True),
+    show_default=True,
+    help="Directory containing GRID3 boundary CSVs.",
+)
+@click.option(
+    "--output", "-o",
+    default=None,
+    type=click.Path(),
+    help="Output CSV path (default: <manifest_stem>_enriched.csv beside input).",
+)
+@click.option("--dry-run", is_flag=True, help="Report match stats without writing output.")
+def enrich(manifest: str, spatial_dir: str, output, dry_run: bool):
+    """Enrich a manifest CSV with GRID3 spatial boundary metadata.
+
+    Joins each row's admin_tree to the nearest pagename_* boundary, adding
+    canonical pagenames, grid3id, and a fine-grained spatial bbox.
+    Run after `archive generate` and before `archive build`.
+    """
+    from .enrich_manifest import run_enrich
+
+    run_enrich(
+        manifest_path=manifest,
+        spatial_dir=spatial_dir,
+        output_path=output,
+        dry_run=dry_run,
+    )
 
 
 @main.command()

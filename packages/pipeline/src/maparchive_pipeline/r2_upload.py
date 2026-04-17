@@ -62,20 +62,41 @@ def upload_manifest_files(
 ) -> list[str]:
     """Upload all files from a manifest to R2.
 
-    Expects local files at: local_dir/{theme}/{admin0}/{area}/{filename}
-    Uploads to R2 at: maps/{theme}/{admin0}/{area}/{filename}
+    Local files are located using the same directory structure that
+    `download_manifest_files` creates:
+      local_dir/{theme}/{admin0}/{admin1}/.../{original_filename}
+
+    Each file is uploaded to the normalized R2 key (row.r2_key), which uses
+    filename_normalized and the canonical lowercase path.
 
     Returns list of uploaded R2 keys.
     """
     local_dir = Path(local_dir)
     client = get_r2_client()
     uploaded: list[str] = []
+    failed: list[str] = []
 
-    for row in rows:
-        local_path = local_dir / row.theme / row.admin0 / row.area / row.filename
+    total = len(rows)
+    for i, row in enumerate(rows, 1):
+        # Mirror the download path: theme/admin0/admin1/.../original_filename
+        local_path = local_dir / row.theme
+        for admin in row.admin_path:
+            local_path = local_path / admin
+        local_path = local_path / row.filename
+
+        print(f"  [{i}/{total}] {row.filename_normalized}", end="\r")
+
         if not local_path.exists():
-            raise FileNotFoundError(f"Local file not found: {local_path}")
+            print(f"\n  ! Not found: {local_path}")
+            failed.append(row.filename)
+            continue
+
         key = upload_file(client, local_path, row.r2_key)
         uploaded.append(key)
+
+    print()
+    print(f"  Uploaded: {len(uploaded)}  Failed: {len(failed)}")
+    if failed:
+        print(f"  Failed: {', '.join(failed[:10])}" + (" ..." if len(failed) > 10 else ""))
 
     return uploaded

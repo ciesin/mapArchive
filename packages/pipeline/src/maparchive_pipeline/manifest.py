@@ -2,6 +2,7 @@
 
 import csv
 from pathlib import Path
+from typing import Any, cast
 
 from pydantic import BaseModel, field_validator
 
@@ -11,14 +12,17 @@ class ManifestRow(BaseModel):
 
     drive_file_id: str
     filename: str
+    admin_tree: str
     theme: str
+    use_case: str = ""
+    admin_level: int = 0  # 0 = admin0 only, 1 = admin0+admin1, etc.
     page_size: str = ""
     page_num: str = ""
     admin0: str          # ISO 3166-1 alpha-3 — always required
-    admin1: str = ""     # Province / state
-    admin2: str = ""     # District / territory
-    admin3: str = ""     # Sub-district / commune
-    admin4: str = ""     # Village / locality
+    admin1: str = ""     # Province / state / etc
+    admin2: str = ""     # Antenne / district
+    admin3: str = ""     # Zone de santé
+    admin4: str = ""     # Aire de santé
     title: str
     description: str = ""
     date: str            # ISO 8601, e.g. "2024-01-01"
@@ -29,6 +33,9 @@ class ManifestRow(BaseModel):
     keywords: str = ""   # comma-separated
     license: str = "CC-BY-4.0"
     source_attribution: str = ""
+    # Populated by enrich step
+    spatial_level: str = ""  # e.g. "zonesante", "airesante"
+    grid3id: str = ""        # GRID3 boundary identifier
 
     @field_validator("admin0")
     @classmethod
@@ -38,6 +45,23 @@ class ManifestRow(BaseModel):
                 f"admin0 must be a 3-letter ISO 3166-1 alpha-3 code, got '{v}'"
             )
         return v.upper()
+
+    @property
+    def filename_normalized(self) -> str:
+        """Filename reconstructed in the canonical NEW convention.
+
+        {pageSize}_{useCase}_{admin0}[_{admin1..N}][_{pageNum}]_{YYYYMMDD}.{ext}
+
+        All parts are lowercase for stable, case-consistent permanent URLs.
+        Legacy filenames (different convention or use_case) are fully re-expressed.
+        """
+        ext = Path(self.filename).suffix.lower()
+        parts = [self.page_size.lower(), self.use_case]
+        parts += [a.lower() for a in self.admin_path]
+        if self.page_num:
+            parts.append(self.page_num)
+        parts.append(self.date.replace("-", ""))  # YYYY-MM-DD → YYYYMMDD
+        return "_".join(parts) + ext
 
     @property
     def keyword_list(self) -> list[str]:
@@ -61,22 +85,29 @@ class ManifestRow(BaseModel):
 
     @property
     def item_id(self) -> str:
-        """STAC item ID: filename stem, which is unique and self-describing.
+        """STAC item ID derived from the normalized filename stem.
 
-        Strips the extension and replaces any characters that must be
-        percent-encoded in a URL with hyphens (spaces, brackets, etc.).
-        Underscores and hyphens are preserved — they're unreserved URI chars.
+        Uses filename_normalized so legacy and new-convention items share a
+        consistent ID format.  STAC-safe: lowercase [a-z0-9-._~] only.
         """
-        stem = Path(self.filename).stem
-        # Replace anything that isn't an unreserved URI character
         import re
-        return re.sub(r"[^A-Za-z0-9\-._~]", "-", stem)
+        stem = Path(self.filename_normalized).stem
+        return re.sub(r"[^a-z0-9\-._~]", "-", stem.lower())
+
+    @property
+    def collection_id(self) -> str:
+        """STAC collection ID for this item's AOI: lowercase, hyphen-joined admin path.
+
+        e.g. admin_path ["COD", "Tshopo", "Kisangani"] → "cod-tshopo-kisangani"
+        """
+        return "-".join(a.lower() for a in self.admin_path)
 
     @property
     def r2_key(self) -> str:
-        """R2 object path: maps/{theme}/{admin0}/{admin1}/.../{filename}"""
-        admin_subpath = "/".join(self.admin_path)
-        return f"maps/{self.theme}/{admin_subpath}/{self.filename}"
+        """R2 object path: maps/{theme}/{admin_path...}/{use_case}/{filename_normalized}"""
+        admin_subpath = "/".join(a.lower() for a in self.admin_path)
+        use_case_slug = self.use_case.lower() if self.use_case else "uncategorized"
+        return f"maps/{self.theme}/{admin_subpath}/{use_case_slug}/{self.filename_normalized}"
 
 
 def load_manifest(path: str | Path) -> list[ManifestRow]:
@@ -87,7 +118,8 @@ def load_manifest(path: str | Path) -> list[ManifestRow]:
         reader = csv.DictReader(f)
         for i, raw in enumerate(reader, start=2):
             try:
-                rows.append(ManifestRow(**raw))
+                row_data = cast(dict[str, Any], raw)
+                rows.append(ManifestRow.model_validate(row_data))
             except Exception as e:
                 raise ValueError(f"Manifest row {i}: {e}") from e
     return rows

@@ -5,12 +5,16 @@ Scans Google Drive folders, parses structured filenames, auto-generates
 metadata attributes, and outputs CSV manifests for the maparchive pipeline.
 
 Filename convention:
-  {pageSize}_{useCase}_{admin0}_{admin1}_{admin2}_{admin3}_{admin4}_{pageNum}_{date}.{ext}
-  Example: a2_comprehensive-dtp1_RDC_SANKURU_LODJA_KATAKO-KOMBE_KIETE_1_20250602.jpg
+  {pageSize}_{useCase}_{admin0}[_{admin1..admin4}][_{pageNum}]_{date}.{ext}
+  pageNum (e.g. "1", "1-1", "2-3") is optional; date (YYYYMMDD) is always last.
+  Normalized output is all-lowercase for stable permanent URLs.
+  Example (with pageNum): a2_comprehensive-dtp1_rdc_sankuru_lodja_katako-kombe_kiete_1_20250602.jpg
+  Example (no pageNum):   a0_reference_cod_tshopo_kisangani_20260107.jpg
 """
 
 import csv
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -35,13 +39,13 @@ with open(_DATA_DIR / "admin0_bbox.json") as _f:
 # Configuration — edit these to match your project
 # ---------------------------------------------------------------------------
 
-# Map filename useCase values to manifest theme values.
+# Map filename useCase values to generic values.
 # Unmapped useCases fall through as-is (lowercased, hyphens stripped).
-USECASE_TO_THEME = {
-    "comprehensive-dtp1": "comprehensive",
-    "comprehensive-dtp": "comprehensive",
-    "comprehensive-var1": "comprehensive",
-    "comprehensive-var": "comprehensive",
+USECASE_TRANSFORMS = {
+    "comprehensive-dtp1": "comprehensive-dtp1",
+    "comprehensive-dtp": "comprehensive-dtp1",
+    "comprehensive-var1": "comprehensive-var1",
+    "comprehensive-var": "comprehensive-var1",
     "comprehensive": "comprehensive",
     "reference": "reference",
     "microplanification": "microplanning",
@@ -53,14 +57,18 @@ USECASE_TO_THEME = {
     "reference-province": "reference"
 }
 
-# Folder names containing these substrings (case-insensitive) are skipped.
-DEFAULT_IGNORE_FOLDERS = ["old", "archive", "check", "draft", "backup", "test"]
+# Folder names containing these substrings (case-insensitive) are skipped
+# use lowercase here to ensure match
+DEFAULT_IGNORE_FOLDERS = ["old", "archive", "check", "draft", "backup", "test", "project_extension - simplified maps jpg"]
+
+# for now
+DEFAULT_THEME = "health"
 
 # Default license and attribution for generated manifest rows.
 DEFAULT_LICENSE = "CC-BY-4.0"
 DEFAULT_ATTRIBUTION = "CIESIN Columbia University"
 
-# Non-standard admin0 codes used in filenames → ISO 3166-1 alpha-3.
+# Non-standard admin0 codes used in filenames -> ISO 3166-1 alpha-3.
 # pycountry handles most lookups; add project-specific overrides here.
 ADMIN0_OVERRIDES = {
     "RDC": "COD",
@@ -71,15 +79,36 @@ ADMIN0_OVERRIDES = {
 # Filename parsing
 # ---------------------------------------------------------------------------
 
+_PAGE_NUM_RE = re.compile(r"^\d+(-\d+)?$")
+
+
+def _is_country_code(token: str) -> bool:
+    """Return True if *token* looks like a country code (override or pycountry)."""
+    token = token.upper()
+    if token in ADMIN0_OVERRIDES:
+        return True
+    return bool(
+        pycountry.countries.get(alpha_3=token) or pycountry.countries.get(alpha_2=token)
+    )
+
+
 def parse_filename(filename):
     """
     Parse structured filename into metadata components.
 
-    Convention (fixed anchors, variable admin nesting in the middle):
-      {pageSize}_{useCase}_{admin0}[_{admin1}[_{admin2}[_{admin3}[_{admin4]]]]_{pageNum}_{date}.{ext}
+    Two conventions are supported, distinguished by whether parts[1] resolves
+    as a country code:
 
-    Valid part counts: 5 (admin0 only) through 9 (admin0–admin4).
-    Files outside this range are treated as unparseable.
+    NEW (parts[1] = useCase):
+      {pageSize}_{useCase}_{admin0}[_{admin1..admin4}][_{pageNum}]_{date}.{ext}
+      e.g. a0_reference-minimal-zonesante_COD_TSHOPO_KISANGANI_1-1_20260107.jpg
+
+    LEGACY (parts[1] = country code):
+      {pageSize}_{country}[_{admin1..admin4}]_{useCase}_{date}.{ext}
+      e.g. A2_RDC_MANIEMA_KINDU_PANGI_MISISI_microplanification_20241209.jpg
+
+    In both cases the date (YYYYMMDD) is always the last chunk.
+    pageNum (e.g. "1", "1-1") is optional in the NEW convention only.
     """
     _empty = {
         "page_size": None, "use_case": None,
@@ -92,12 +121,42 @@ def parse_filename(filename):
         name_without_ext = filename.rsplit(".", 1)[0]
         parts = name_without_ext.split("_")
 
-        # 5 = minimum (page_size, use_case, admin0, page_num, raw_date)
-        # 9 = maximum (adds admin1–admin4)
-        if not (5 <= len(parts) <= 9):
+        # Floor/ceiling covers both conventions
+        if not (4 <= len(parts) <= 9):
             return _empty
 
-        admin_parts = parts[2:-2]   # everything between use_case and page_num
+        raw_date = parts[-1]
+
+        if _is_country_code(parts[1]):
+            # --- LEGACY convention: {pageSize}_{country}[_{admin1..4}]_{useCase}_{date} ---
+            # parts[-2] = useCase, no pageNum
+            use_case = parts[-2]
+            admin_parts = parts[1:-2]   # country + optional admin1..4
+            if not (1 <= len(admin_parts) <= 5):
+                return _empty
+            admin_levels = {f"admin{i}": admin_parts[i] if i < len(admin_parts) else None
+                            for i in range(5)}
+            return {
+                "page_size": parts[0],
+                "use_case": use_case,
+                **admin_levels,
+                "page_num": None,
+                "raw_date": raw_date,
+                "parsed": True,
+            }
+
+        # --- NEW convention: {pageSize}_{useCase}_{admin0}[_{admin1..4}][_{pageNum}]_{date} ---
+        # Detect optional pageNum as second-to-last chunk
+        if _PAGE_NUM_RE.match(parts[-2]):
+            page_num = parts[-2]
+            admin_parts = parts[2:-2]
+        else:
+            page_num = None
+            admin_parts = parts[2:-1]
+
+        if not (1 <= len(admin_parts) <= 5):
+            return _empty
+
         admin_levels = {f"admin{i}": admin_parts[i] if i < len(admin_parts) else None
                         for i in range(5)}
 
@@ -105,8 +164,8 @@ def parse_filename(filename):
             "page_size": parts[0],
             "use_case": parts[1],
             **admin_levels,
-            "page_num": parts[-2],
-            "raw_date": parts[-1],
+            "page_num": page_num,
+            "raw_date": raw_date,
             "parsed": True,
         }
     except Exception:
@@ -179,13 +238,13 @@ def _format_date(raw_date):
         return ""
 
 
-def resolve_theme(use_case):
+def resolve_usecase(use_case):
     """Map a filename useCase to a manifest theme."""
     if not use_case:
         return "uncategorized"
     key = use_case.lower()
-    if key in USECASE_TO_THEME:
-        return USECASE_TO_THEME[key]
+    if key in USECASE_TRANSFORMS:
+        return USECASE_TRANSFORMS[key]
     return key.rstrip("0123456789").rstrip("-") or key
 
 
@@ -193,7 +252,8 @@ def build_manifest_row(drive_file, parsed, normalize_admin0=True):
     """Convert a Drive file + parsed filename into a manifest CSV row."""
     admin0 = resolve_admin0(parsed["admin0"], normalize=normalize_admin0)
     country_name = get_country_name(admin0)
-    theme = resolve_theme(parsed["use_case"])
+    use_case = resolve_usecase(parsed["use_case"])
+    theme = DEFAULT_THEME
     date = _format_date(parsed["raw_date"])
     bbox = resolve_bbox(admin0)
 
@@ -206,11 +266,13 @@ def build_manifest_row(drive_file, parsed, normalize_admin0=True):
     present_inner = [admins[f"admin{i}"] for i in range(4, -1, -1) if admins[f"admin{i}"]]
     present_outer = [admins[f"admin{i}"] for i in range(5) if admins[f"admin{i}"]]
 
+    this_admin = len(present_outer) - 1  # admin0 only = 0, admin0+admin1 = 1, etc.
+
     location_str = ", ".join(present_inner) if len(present_inner) > 1 else (present_inner[0] if present_inner else country_name)
     year = date[:4] if date else ""
-    use_label = (parsed["use_case"] or theme).replace("-", " ").title()
+    use_label = use_case.replace("-", " ").title()
 
-    title = f"{use_label} — {location_str}, {country_name}"
+    title = f"{use_label}: {location_str}, {country_name}"
     if year:
         title += f" ({year})"
 
@@ -224,8 +286,8 @@ def build_manifest_row(drive_file, parsed, normalize_admin0=True):
     description = " ".join(desc_parts) + "."
 
     kw = {theme}
-    if parsed["use_case"]:
-        kw.add(parsed["use_case"].lower().replace("-", " "))
+    if use_case:
+        kw.add(use_case.replace("-", " "))
     for lvl in present_outer:
         kw.add(lvl.lower())
     keywords = ",".join(sorted(kw))
@@ -233,7 +295,10 @@ def build_manifest_row(drive_file, parsed, normalize_admin0=True):
     return {
         "drive_file_id": drive_file["id"],
         "filename": drive_file["name"],
-        "theme": theme,
+        "admin_tree": "_".join(v for k in ["admin0","admin1","admin2","admin3","admin4"] if (v := admins.get(k))),
+        "theme": DEFAULT_THEME,
+        "use_case": use_case,
+        "admin_level": this_admin,
         "page_size": parsed.get("page_size") or "",
         "page_num": parsed.get("page_num") or "",
         "admin0": admin0,
@@ -242,7 +307,7 @@ def build_manifest_row(drive_file, parsed, normalize_admin0=True):
         "admin3": admins["admin3"],
         "admin4": admins["admin4"],
         "title": title,
-        "description": description,
+        "description": "",
         "date": date,
         "bbox_west": bbox[0] if bbox[0] is not None else "",
         "bbox_south": bbox[1] if bbox[1] is not None else "",
@@ -360,13 +425,78 @@ def scan_folder(
 
 
 # ---------------------------------------------------------------------------
+# Page-number normalization
+# ---------------------------------------------------------------------------
+
+def normalize_page_nums(rows: list[dict]) -> list[dict]:
+    """Normalize page_num to X-Y format across all rows.
+
+    Groups by (page_size, use_case, admin_tree, date) — all files that
+    represent pages of the same map product.  Within each group:
+      - Missing page_num  → assigned rank by filename sort order
+      - Bare integer "N"  → "N-{total}"
+      - "X-Y" already     → "X-{total}"  (Y corrected to actual group size)
+
+    Single-page products always get "1-1".
+    """
+    rows = [dict(r) for r in rows]  # operate on copies
+
+    groups: dict[tuple, list[int]] = {}
+    for i, row in enumerate(rows):
+        key = (
+            (row.get("page_size") or "").lower(),
+            row.get("use_case") or "",
+            row.get("admin_tree") or "",
+            row.get("date") or "",
+        )
+        groups.setdefault(key, []).append(i)
+
+    for indices in groups.values():
+        total = len(indices)
+
+        # Sort by explicit page number first, then filename for determinism
+        def _sort_key(i):
+            pn = rows[i].get("page_num") or ""
+            fn = rows[i].get("filename") or ""
+            x = pn.split("-")[0]
+            return (int(x) if x.isdigit() else 999999, fn)
+
+        sorted_indices = sorted(indices, key=_sort_key)
+
+        # First pass: find which integer ranks are already claimed
+        claimed: dict[int, int] = {}   # rank → row index
+        unassigned: list[int] = []
+        for i in sorted_indices:
+            pn = rows[i].get("page_num") or ""
+            x = pn.split("-")[0] if pn else ""
+            if x.isdigit():
+                claimed[int(x)] = i
+            else:
+                unassigned.append(i)
+
+        # Assign available ranks to rows that have none
+        available = [r for r in range(1, total + 1) if r not in claimed]
+        for i, rank in zip(unassigned, available):
+            rows[i]["page_num"] = f"{rank}-{total}"
+
+        # Update all claimed rows with correct total
+        for rank, i in claimed.items():
+            rows[i]["page_num"] = f"{rank}-{total}"
+
+    return rows
+
+
+# ---------------------------------------------------------------------------
 # CSV output
 # ---------------------------------------------------------------------------
 
 MANIFEST_FIELDS = [
     "drive_file_id",
     "filename",
+    "admin_tree",
     "theme",
+    "use_case",
+    "admin_level",
     "page_size",
     "page_num",
     "admin0",
@@ -446,6 +576,7 @@ def run_generate(
         )
     )
     elapsed = time.time() - start
+    rows = normalize_page_nums(rows)
 
     print(f"\n{'=' * 60}")
     print(f"Scan complete in {elapsed:.1f}s")

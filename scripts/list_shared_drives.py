@@ -3,7 +3,7 @@ from googleapiclient.discovery import build
 
 # Scopes and credentials
 SCOPES = ['https://www.googleapis.com/auth/drive']
-creds_file = 'scripts/misc/analytics/drive_credentials.json'
+creds_file = '/home/mjh2241/GitHub/mapArchive/packages/pipeline/drive_credentials.json'
 
 # Authentication
 flow = InstalledAppFlow.from_client_secrets_file(creds_file, SCOPES)

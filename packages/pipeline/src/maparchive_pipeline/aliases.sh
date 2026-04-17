@@ -1,0 +1,1 @@
+uv run archive generate --folder-id 1VsJcWls1InjJHhSRaOXcequwOtDO51Iu --shared-drive-id 0ADlSHfYqffmEUk9PVA

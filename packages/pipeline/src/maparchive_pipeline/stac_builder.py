@@ -1,4 +1,20 @@
-"""Build STAC Catalogs, Collections, and Items from a validated manifest."""
+"""Build STAC Catalogs, Collections, and Items from a validated manifest.
+
+Hierarchy
+---------
+ROOT (Catalog)
+└── {theme} (Collection)          ← aggregate extent for all maps in a theme
+    └── {admin0} (Collection)     ← e.g. "cod"
+        └── {admin0-admin1} (Collection)   ← e.g. "cod-tshopo"
+            └── ... (Collections, one per AOI level)
+                └── item.json     ← one Item per map file
+
+Collection IDs follow STAC best-practice searchable-identifier rules:
+  lowercase, only [a-z0-9-._~], built by joining the admin path with "-".
+
+Item properties for non-standard fields are namespaced "ciesin:*" per
+STAC extension best-practices.
+"""
 
 from datetime import datetime
 from pathlib import Path
@@ -9,6 +25,10 @@ from .config import R2_PUBLIC_URL, CF_IMAGES_ZONE
 from .manifest import ManifestRow
 
 
+# ---------------------------------------------------------------------------
+# Public entry point
+# ---------------------------------------------------------------------------
+
 def build_catalog(
     rows: list[ManifestRow],
     output_dir: str | Path,
@@ -16,16 +36,7 @@ def build_catalog(
     catalog_title: str = "CIESIN Map Archive",
     catalog_description: str = "Searchable archive of high-resolution maps from CIESIN, Columbia University",
 ) -> pystac.Catalog:
-    """Build a hierarchical STAC catalog and write to disk.
-
-    Structure:
-        ROOT (Catalog)
-        └── {theme} (Collection)  — aggregate spatial/temporal extent
-            └── {admin0} (Catalog)
-                └── {admin1} (Catalog)
-                    └── ... (Catalogs)
-                        └── item.json (Item, collection link → theme Collection)
-    """
+    """Build a hierarchical STAC catalog and write to disk."""
     output_dir = Path(output_dir)
 
     catalog = pystac.Catalog(
@@ -34,24 +45,14 @@ def build_catalog(
         description=catalog_description,
     )
 
-    # Group rows by theme
     themes: dict[str, list[ManifestRow]] = {}
     for row in rows:
         themes.setdefault(row.theme, []).append(row)
 
     for theme, theme_rows in themes.items():
-        collection = _build_collection(theme, theme_rows)
-        catalog.add_child(collection)
-
-        # catalog_nodes caches already-created Catalog objects by path tuple
-        # to avoid O(n²) child lookups while building the hierarchy.
-        # Keys: (admin0,), (admin0, admin1), ..., (admin0, ..., admin4)
-        catalog_nodes: dict[tuple[str, ...], pystac.Catalog] = {}
-
-        for row in theme_rows:
-            item = _build_item(row)
-            leaf = _get_admin_leaf(collection, row.admin_path, catalog_nodes)
-            leaf.add_item(item)
+        theme_collection = _build_theme_collection(theme, theme_rows)
+        catalog.add_child(theme_collection)
+        _build_aoi_hierarchy(theme_collection, theme_rows)
 
     catalog.normalize_hrefs(str(output_dir))
     catalog.save(catalog_type=pystac.CatalogType.SELF_CONTAINED)
@@ -59,65 +60,124 @@ def build_catalog(
     return catalog
 
 
-def _get_admin_leaf(
-    collection: pystac.Collection,
-    admin_path: list[str],
-    catalog_nodes: dict[tuple[str, ...], pystac.Catalog],
-) -> pystac.Catalog | pystac.Collection:
-    """Navigate or create the chain of admin Catalog nodes within a Collection.
+# ---------------------------------------------------------------------------
+# AOI collection hierarchy
+# ---------------------------------------------------------------------------
 
-    Returns the deepest Catalog (or the Collection itself if admin_path is empty).
+def _build_aoi_hierarchy(
+    theme_collection: pystac.Collection,
+    rows: list[ManifestRow],
+) -> None:
+    """Build AOI-based sub-collections inside *theme_collection* and add items.
+
+    Each unique admin-path prefix (e.g. ("cod",), ("cod","tshopo"), …) becomes
+    a pystac.Collection whose spatial/temporal extent covers all rows beneath it.
+    Items land in their exact-level collection.
     """
-    current: pystac.Catalog | pystac.Collection = collection
-    key: tuple[str, ...] = ()
+    # 1. Collect rows for every ancestor prefix of each row's admin path
+    prefix_rows: dict[tuple[str, ...], list[ManifestRow]] = {}
+    for row in rows:
+        path = tuple(a.lower() for a in row.admin_path)
+        for depth in range(1, len(path) + 1):
+            prefix_rows.setdefault(path[:depth], []).append(row)
 
-    for admin in admin_path:
-        key = key + (admin,)
-        if key not in catalog_nodes:
-            cat = pystac.Catalog(
-                id=admin,
-                description=f"Maps in {admin}",
-            )
-            current.add_child(cat)
-            catalog_nodes[key] = cat
-        current = catalog_nodes[key]
+    # 2. Create collections, parents before children (sort by depth)
+    aoi_collections: dict[tuple[str, ...], pystac.Collection] = {}
 
-    return current
+    for prefix in sorted(prefix_rows, key=len):
+        prows = prefix_rows[prefix]
+        first_row = prows[0]
+
+        # Human-readable display name = most-specific admin component
+        display_name = first_row.admin_path[len(prefix) - 1]
+        breadcrumb = " > ".join(first_row.admin_path[: len(prefix)])
+
+        coll = pystac.Collection(
+            id="-".join(prefix),
+            title=display_name,
+            description=f"Maps covering {breadcrumb}",
+            extent=_compute_extent(prows),
+            license=first_row.license,
+            providers=_build_providers(first_row.source_attribution),
+        )
+
+        parent: pystac.STACObject = (
+            theme_collection if len(prefix) == 1 else aoi_collections[prefix[:-1]]
+        )
+        parent.add_child(coll)
+        aoi_collections[prefix] = coll
+
+    # 3. Add items to their exact-level (leaf) collection
+    for row in rows:
+        path = tuple(a.lower() for a in row.admin_path)
+        aoi_collections[path].add_item(_build_item(row))
 
 
-def _build_collection(theme: str, rows: list[ManifestRow]) -> pystac.Collection:
-    """Create a STAC Collection for a theme with aggregate spatial/temporal extent."""
-    bboxes = [r.bbox for r in rows]
-    west  = min(b[0] for b in bboxes)
-    south = min(b[1] for b in bboxes)
-    east  = max(b[2] for b in bboxes)
-    north = max(b[3] for b in bboxes)
+# ---------------------------------------------------------------------------
+# Collection builders
+# ---------------------------------------------------------------------------
 
-    dates = []
-    for r in rows:
-        try:
-            dates.append(datetime.fromisoformat(r.date))
-        except ValueError:
-            pass
-
-    extent = pystac.Extent(
-        spatial=pystac.SpatialExtent(bboxes=[[west, south, east, north]]),
-        temporal=pystac.TemporalExtent(
-            intervals=[[min(dates) if dates else None, max(dates) if dates else None]]
-        ),
-    )
-
+def _build_theme_collection(theme: str, rows: list[ManifestRow]) -> pystac.Collection:
+    """Create the top-level theme Collection with aggregate extent."""
     return pystac.Collection(
         id=theme,
         title=f"{theme.replace('-', ' ').title()} Maps",
-        description=f"Maps related to {theme.replace('-', ' ')}.",
-        extent=extent,
+        description=f"Archive of {theme.replace('-', ' ')} maps.",
+        extent=_compute_extent(rows),
         license=rows[0].license if rows else "proprietary",
+        providers=_build_providers(rows[0].source_attribution if rows else ""),
     )
 
 
+def _compute_extent(rows: list[ManifestRow]) -> pystac.Extent:
+    """Compute aggregate spatial + temporal extent from a set of rows."""
+    bboxes = [r.bbox for r in rows if r.bbox[0] is not None]
+    if bboxes:
+        west  = min(b[0] for b in bboxes)
+        south = min(b[1] for b in bboxes)
+        east  = max(b[2] for b in bboxes)
+        north = max(b[3] for b in bboxes)
+    else:
+        west, south, east, north = -180.0, -90.0, 180.0, 90.0
+
+    dates: list[datetime] = []
+    for r in rows:
+        try:
+            dates.append(datetime.fromisoformat(r.date))
+        except (ValueError, AttributeError):
+            pass
+
+    return pystac.Extent(
+        spatial=pystac.SpatialExtent([[west, south, east, north]]),
+        temporal=pystac.TemporalExtent(
+            [[min(dates) if dates else None, max(dates) if dates else None]]
+        ),
+    )
+
+
+def _build_providers(attribution: str) -> list[pystac.Provider]:
+    if not attribution:
+        return []
+    return [
+        pystac.Provider(
+            name=attribution,
+            roles=[pystac.ProviderRole.PRODUCER, pystac.ProviderRole.LICENSOR],
+        )
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Item builder
+# ---------------------------------------------------------------------------
+
 def _build_item(row: ManifestRow) -> pystac.Item:
-    """Create a STAC Item from a manifest row."""
+    """Create a STAC Item from a manifest row.
+
+    Custom (non-standard) properties are namespaced under "ciesin:" per
+    STAC best-practices for searchable identifiers and extension hygiene.
+    Standard STAC common-metadata fields (title, description, keywords)
+    are used without a prefix.
+    """
     bbox = row.bbox
     geometry = {
         "type": "Polygon",
@@ -132,14 +192,21 @@ def _build_item(row: ManifestRow) -> pystac.Item:
 
     try:
         dt = datetime.fromisoformat(row.date)
-    except ValueError:
+    except (ValueError, AttributeError):
         dt = None
 
-    # Only include non-empty admin levels in properties
+    # Only include non-empty admin levels; namespace all custom properties
     admin_props = {
-        f"admin{i}": val
+        f"ciesin:admin{i}": val
         for i, val in enumerate([row.admin0, row.admin1, row.admin2, row.admin3, row.admin4])
         if val
+    }
+
+    spatial_props = {
+        k: v for k, v in {
+            "ciesin:spatial_level": row.spatial_level,
+            "ciesin:grid3id": row.grid3id,
+        }.items() if v
     }
 
     item = pystac.Item(
@@ -148,14 +215,19 @@ def _build_item(row: ManifestRow) -> pystac.Item:
         bbox=bbox,
         datetime=dt,
         properties={
+            # --- STAC common metadata (no prefix) ---
             "title": row.title,
             "description": row.description,
-            **admin_props,
-            "page_size": row.page_size,
-            "page_num": row.page_num,
-            "theme": row.theme,
             "keywords": row.keyword_list,
-            "source_attribution": row.source_attribution,
+            # --- CIESIN-specific properties ---
+            "ciesin:theme": row.theme,
+            "ciesin:use_case": row.use_case,
+            "ciesin:admin_level": row.admin_level,
+            "ciesin:page_size": row.page_size,
+            "ciesin:page_num": row.page_num,
+            "ciesin:filename_original": row.filename,
+            **admin_props,
+            **spatial_props,
         },
     )
 
@@ -163,7 +235,6 @@ def _build_item(row: ManifestRow) -> pystac.Item:
     if R2_PUBLIC_URL:
         asset_href = f"{R2_PUBLIC_URL}/{row.r2_key}"
 
-    # "data" = the file itself; "visual" = it is a visual/RGB rendering (not raw numeric data)
     item.add_asset(
         "original",
         pystac.Asset(
@@ -196,6 +267,10 @@ def _build_item(row: ManifestRow) -> pystac.Item:
 
     return item
 
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def _cf_image_url(asset_href: str, options: str) -> str:
     """Build a Cloudflare Images transform URL.

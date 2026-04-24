@@ -77,13 +77,13 @@ html {
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Inter Tight', Arial, Helvetica, sans-serif;
   color: var(--ciesin-accent);
+  padding-bottom: 0.5em;
 }
 
 h1 {
   font-weight: 600;
   font-size: 1.25rem;
   border-bottom: 1px solid var(--ciesin-accent);
-  padding-bottom: 0.3em;
 }
 
 h2 {
@@ -150,7 +150,7 @@ pre {
 .container {
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 2rem;
 }
 
 .section {
@@ -191,6 +191,7 @@ pre {
   color: #ffffff;
   text-decoration: none;
 }
+
 .nav-brand:hover {
   color: rgba(255, 255, 255, 0.85);
   text-decoration: none;

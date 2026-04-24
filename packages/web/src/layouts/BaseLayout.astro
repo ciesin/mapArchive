@@ -22,7 +22,14 @@ const pageTitle = title === 'CIESIN Map Archive' ? title : `${title} | CIESIN Ma
   <body>
     <nav class="nav">
       <div class="container nav-inner">
-        <a href="/" class="nav-brand">CIESIN Map Archive</a>
+        <a href="/" class="nav-brand" aria-label="CIESIN Map Archive home">
+          <img
+            src="/Columbia_University_Logo-Crown_white.png"
+            alt="Columbia University logo"
+            style="height: 28px; width: auto; display: block;"
+          />
+        </a>
+
         <div class="nav-links">
           <a href="/catalog">Catalog</a>
           <a href="/search">Search</a>
@@ -42,48 +49,3 @@ const pageTitle = title === 'CIESIN Map Archive' ? title : `${title} | CIESIN Ma
     </footer>
   </body>
 </html>
-
-<style>
-  .nav {
-    height: var(--nav-height);
-    border-bottom: 1px solid var(--color-border);
-    background: var(--color-surface);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  .nav-inner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 100%;
-  }
-  .nav-brand {
-    font-weight: 700;
-    font-size: 1.125rem;
-    color: var(--color-text);
-  }
-  .nav-brand:hover {
-    text-decoration: none;
-  }
-  .nav-links {
-    display: flex;
-    gap: 1.5rem;
-  }
-  .nav-links a {
-    color: var(--color-text-muted);
-    font-size: 0.875rem;
-  }
-  .nav-links a:hover {
-    color: var(--color-text);
-    text-decoration: none;
-  }
-  .footer {
-    border-top: 1px solid var(--color-border);
-    padding: 1.5rem 0;
-    margin-top: 3rem;
-    color: var(--color-text-muted);
-    font-size: 0.8125rem;
-    text-align: center;
-  }
-</style>

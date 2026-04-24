@@ -1,17 +1,160 @@
 ---
-
+import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>CIESIN Map Archive</title>
-	</head>
-	<body>
-		<h1>Testing testing testing</h1>
-	</body>
-</html>
+<BaseLayout title="CIESIN Map Archive" description="Searchable archive of high-resolution maps from CIESIN at Columbia University">
+
+  <section class="hero">
+    <div class="container hero-inner">
+      <div class="hero-logo-wrap">
+        <img
+          src="/CIESIN_TransparentBackground_BlueText.png"
+          alt="CIESIN – Center for International Earth Science Information Network"
+          class="hero-logo"
+        />
+      </div>
+      <!-- <p class="hero-sub">Center for International Earth Science Information Network</p>
+      <h1 class="hero-title">Map Archive</h1>
+      <p class="hero-desc">
+        A searchable digital archive of high-resolution maps produced by CIESIN at Columbia University,
+        cataloged as interoperable STAC items. -->
+      </p>
+      <div class="hero-actions">
+        <a href="/catalog" class="btn btn-primary">Browse Catalog</a>
+        <a href="/search" class="btn">Search Maps</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="container">
+    <!-- <div class="about-content section">
+
+      <h2>About CIESIN</h2>
+      <p>
+        The <a href="https://www.ciesin.columbia.edu/">Center for International Earth Science
+        Information Network (CIESIN)</a> is a research center in the
+        <a href="https://www.earth.columbia.edu/">Columbia Climate School</a> at Columbia University.
+        CIESIN works at the intersection of the social, natural, and information sciences to understand
+        human interactions with the environment, providing data and tools that support global research,
+        sustainable development, and humanitarian operations.
+      </p>
+      <p>
+        CIESIN hosts the NASA Socioeconomic Data and Applications Center (SEDAC), one of the Distributed
+        Active Archive Centers in NASA's Earth Observing System Data and Information System, and is a
+        leading producer of global demographic and environmental datasets.
+      </p>
+
+      <h2>GRID3</h2>
+      <p>
+        The <a href="https://grid3.org/">Geo-Referenced Infrastructure and Demographic Data for
+        Development (GRID3)</a> program supports governments and partners across sub-Saharan Africa
+        with high-resolution population estimates, settlement mapping, and administrative boundary data
+        for planning, resource allocation, and monitoring.
+      </p>
+      <p>
+        This archive includes maps produced through GRID3's collaboration with
+        <a href="https://www.gavi.org/">Gavi, the Vaccine Alliance</a>'s Equity Accelerator Fund (EAF),
+        supporting immunization equity initiatives — beginning with the Democratic Republic of the Congo.
+      </p> -->
+
+      <h2>This Archive</h2>
+	  <br>
+      <p>
+        The <strong>CIESIN Map Archive</strong> is a searchable digital archive of high-resolution maps
+        authored and maintained by the <a href="https://www.ciesin.columbia.edu/">Center for International
+        Earth Science Information Network (CIESIN)</a> at Columbia University.
+      </p>
+      <p>
+        <em>
+        This archive is a work in progress; Version 1.0 will include a limited set of maps of the Democratic Republic of the Congo produced between late 2024 and early 2026 as part of the GRID3 project's collaboration with Gavi, the Vaccine Alliance's Equity Accelerator Fund (EAF).
+        </em>
+      </p>
+
+    </div>
+  </div>
+
+</BaseLayout>
+
+<style>
+  /* Hero */
+  .hero {
+    background: #ffffff;
+    border-bottom: 1px solid var(--color-border);
+    padding: 3.5rem 0 3rem;
+    text-align: center;
+  }
+
+  .hero-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .hero-logo-wrap {
+    margin-bottom: 0.5rem;
+  }
+
+  .hero-logo {
+    width: 85%;
+	height: auto;
+    display: block;
+    margin: 0 auto;
+  }
+
+  .hero-sub {
+    font-size: 0.8125rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+
+  .hero-title {
+    font-family: 'Inter Tight', Arial, sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--ciesin-accent);
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .hero-desc {
+    max-width: 560px;
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    line-height: 1.6;
+    margin: 0.25rem 0 0.5rem;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 0.5rem;
+  }
+
+  /* About content (reuse global .about-content, override h2 scoped styles) */
+  .about-content h2 {
+    font-size: 1rem;
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .about-content p {
+    line-height: 1.7;
+  }
+
+  /* Dark mode: hero bg darkens to match surface */
+  @media (prefers-color-scheme: dark) {
+    .hero {
+      background: var(--color-surface);
+    }
+
+    .hero-logo {
+      filter: brightness(0) invert(1);
+    }
+  }
+</style>

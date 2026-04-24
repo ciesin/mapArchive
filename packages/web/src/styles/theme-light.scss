@@ -1,0 +1,36 @@
+/*-- scss:defaults --*/
+
+// Bootstrap Sass variable overrides — light mode, colors only.
+// These compile into Bootstrap's generated CSS for Quarto elements
+// (TOC, sidebar, search, callouts, tables, etc.)
+
+$body-bg:        #ffffff;
+$body-color:     #212529;
+$headings-color: #1D4F91;
+$link-color:     #1D4F91;
+$link-hover-color: darken(#1D4F91, 10%);
+$border-color:   #dee2e6;
+$code-color:     #495057;
+$secondary:      #5D6D7E;
+
+
+/*-- scss:rules --*/
+
+// CSS custom properties consumed by custom.css.
+// Add any custom.css hardcoded color here and reference
+// it with var(--ciesin-*) in custom.css.
+
+:root {
+  --ciesin-brand:        #1D4F91;   /* navbar, buttons, back-to-top      */
+  --ciesin-accent:       #1D4F91;   /* headings, links, borders, hr       */
+  --ciesin-muted:        #5D6D7E;   /* subtitle / secondary text          */
+  --ciesin-nav: #1D4F91;   /* sidebar nav text and icons         */
+  --ciesin-code-border:  #2C3E50;   /* code block left border             */
+  --ciesin-code-bg:      #f9fafb;   /* code block background              */
+  --ciesin-footer-rule:  rgba(0, 0, 0, 0.08);      /* footer top rule    */
+  --ciesin-shadow:       rgba(0, 0, 0, 0.14);       /* card shadow        */
+  --ciesin-shadow-hover: rgba(29, 79, 145, 0.28);   /* card hover shadow  */
+
+  --text-color: #1D4F91;
+  --background-color: #ffffff;
+}

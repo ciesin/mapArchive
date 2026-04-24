@@ -1,0 +1,34 @@
+/*-- scss:defaults --*/
+
+// Bootstrap Sass variable overrides — dark mode, colors only.
+// Palette derived from brand blue #1D4F91.
+
+$body-bg:        #303030;
+$body-color:     #fdfdfd;
+$headings-color: #fdfdfd;
+$link-color:     #a8ccf2;
+$link-hover-color: lighten(#7ab3e8, 10%);
+$border-color:   #c7c7c7;
+$code-color:     #a8ccf2;
+$secondary:      #a5a5a5;
+
+
+/*-- scss:rules --*/
+
+// CSS custom properties consumed by custom.css.
+// Mirror the same token names as theme-light.scss — only values differ.
+
+:root {
+  --ciesin-brand:        #003373;   /* unchanged — navbar/buttons stay blue */
+  --ciesin-accent:       #a8ccf2;   /* headings, links, borders, hr         */
+  --ciesin-muted:        #c9c9c9;   /* subtitle / secondary text            */
+  --ciesin-nav: #303030;   
+  --ciesin-code-border:  #3a6ab0;   /* code block left border               */
+  --ciesin-code-bg:      #111c2e;   /* code block background                */
+  --ciesin-footer-rule:  rgba(255, 255, 255, 0.12);   /* footer top rule    */
+  --ciesin-shadow:       rgba(0, 0, 0, 0.40);          /* card shadow        */
+  --ciesin-shadow-hover: rgba(13, 40, 80, 0.55);       /* card hover shadow  */
+
+  --text-color: #fdfdfd;
+  --background-color: #1f1f1f
+}

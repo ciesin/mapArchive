@@ -6,8 +6,8 @@ interface Props {
   description?: string;
 }
 
-const { title = 'mapArchive', description = 'Searchable archive of high-resolution maps' } = Astro.props;
-const pageTitle = title === 'mapArchive' ? title : `${title} | mapArchive`;
+const { title = 'CIESIN Map Archive', description = 'Searchable archive of high-resolution maps' } = Astro.props;
+const pageTitle = title === 'CIESIN Map Archive' ? title : `${title} | CIESIN Map Archive`;
 ---
 
 <!doctype html>
@@ -22,7 +22,7 @@ const pageTitle = title === 'mapArchive' ? title : `${title} | mapArchive`;
   <body>
     <nav class="nav">
       <div class="container nav-inner">
-        <a href="/" class="nav-brand">mapArchive</a>
+        <a href="/" class="nav-brand">CIESIN Map Archive</a>
         <div class="nav-links">
           <a href="/catalog">Catalog</a>
           <a href="/search">Search</a>
@@ -37,7 +37,7 @@ const pageTitle = title === 'mapArchive' ? title : `${title} | mapArchive`;
 
     <footer class="footer">
       <div class="container">
-        <p>CIESIN &middot; Columbia University</p>
+        <p>©2026 Columbia University</p>
       </div>
     </footer>
   </body>

@@ -1,5 +1,5 @@
 {
-  "name": "maparchive",
+  "name": "ciesin-map-archive",
   "private": true,
   "workspaces": [
     "packages/web"
@@ -10,6 +10,7 @@
     "preview": "npm run preview --workspace=packages/web"
   },
   "dependencies": {
-    "@astrojs/sitemap": "^3.7.2"
+    "@astrojs/sitemap": "^3.7.2",
+    "claude": "^0.1.1"
   }
 }

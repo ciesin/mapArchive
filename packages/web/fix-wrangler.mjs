@@ -1,38 +1,45 @@
 /**
- * Patches dist/server/wrangler.json after `astro build`.
+ * Post-build shim for Cloudflare Pages + @astrojs/cloudflare v13.
  *
- * The @astrojs/cloudflare adapter generates a Worker-style wrangler.json that
- * Cloudflare Pages rejects. Strip all Pages-incompatible fields before deploy.
+ * Astro/cloudflare v13 no longer outputs _worker.js for Pages CI/CD.
+ * It generates dist/server/ (Worker) + dist/client/ (static assets) and
+ * expects `wrangler deploy`. Pages CI can't run that, so we:
  *
- * Fields removed:
- *   assets            — ASSETS binding is reserved by Pages (auto-injected)
- *   kv_namespaces     — SESSION entry has no required `id` string
- *   triggers          — empty {} is invalid; Pages manages cron triggers separately
- *   main              — Worker entry point declaration not supported in Pages config
- *   pages_build_output_dir — conflicts with `main` when both present in same file
- *   rules             — module rules not supported in Pages config
- *   no_bundle         — not supported in Pages config
+ *   1. Bundle dist/server/entry.mjs into dist/client/_worker.js via esbuild.
+ *   2. Delete .wrangler/deploy/config.json (redirects Pages away from wrangler.toml).
+ *
+ * wrangler.toml must have pages_build_output_dir = "./dist/client" so Pages
+ * serves static assets from dist/client/ and picks up _worker.js for SSR.
  */
 
 import fs from 'fs';
 import path from 'path';
+import { build } from 'esbuild';
 
-const wranglerPath = path.resolve('dist/server/wrangler.json');
+const entryPoint = path.resolve('dist/server/entry.mjs');
+const outFile    = path.resolve('dist/client/_worker.js');
+const deployConf = path.resolve('.wrangler/deploy/config.json');
 
-if (!fs.existsSync(wranglerPath)) {
-  console.error('fix-wrangler: dist/server/wrangler.json not found — skipping');
-  process.exit(0);
+if (!fs.existsSync(entryPoint)) {
+  console.error('fix-wrangler: dist/server/entry.mjs not found — aborting');
+  process.exit(1);
 }
 
-const config = JSON.parse(fs.readFileSync(wranglerPath, 'utf8'));
+await build({
+  entryPoints: [entryPoint],
+  bundle: true,
+  outfile: outFile,
+  format: 'esm',
+  platform: 'browser',
+  target: 'es2022',
+  conditions: ['workerd', 'worker', 'browser'],
+  external: ['cloudflare:*', 'node:*', '__STATIC_CONTENT_MANIFEST'],
+  logLevel: 'warning',
+});
 
-delete config.assets;
-delete config.kv_namespaces;
-delete config.triggers;
-delete config.main;
-delete config.pages_build_output_dir;
-delete config.rules;
-delete config.no_bundle;
+console.log('fix-wrangler: bundled _worker.js →', outFile);
 
-fs.writeFileSync(wranglerPath, JSON.stringify(config, null, 2));
-console.log('fix-wrangler: patched dist/server/wrangler.json');
+if (fs.existsSync(deployConf)) {
+  fs.rmSync(deployConf);
+  console.log('fix-wrangler: removed .wrangler/deploy/config.json');
+}

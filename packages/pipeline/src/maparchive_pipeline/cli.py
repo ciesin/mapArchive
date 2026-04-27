@@ -93,13 +93,35 @@ def setup_rclone(remote_name, overwrite):
 @main.command()
 @click.option("--manifest", "-m", required=True, type=click.Path(exists=True))
 @click.option("--dest-dir", "-d", required=True, type=click.Path())
-def download(manifest: str, dest_dir: str):
+@click.option("--workers", default=16, show_default=True,
+              help="Parallel download workers.")
+@click.option("--chunk-size-mb", default=8, show_default=True,
+              help="Download chunk size in MB.")
+@click.option("--retries", default=5, show_default=True,
+              help="Retries per chunk on transient errors.")
+@click.option("--verify-checksum", is_flag=True,
+              help="Verify Drive md5Checksum after download.")
+def download(
+    manifest: str,
+    dest_dir: str,
+    workers: int,
+    chunk_size_mb: int,
+    retries: int,
+    verify_checksum: bool,
+):
     """Download map files from Google Drive."""
     from .drive import download_manifest_files
 
     rows = load_manifest(manifest)
     click.echo(f"Downloading {len(rows)} files from Google Drive...")
-    downloaded = download_manifest_files(rows, dest_dir)
+    downloaded = download_manifest_files(
+        rows,
+        dest_dir,
+        workers=workers,
+        chunksize=chunk_size_mb * 1024 * 1024,
+        num_retries=retries,
+        verify_checksum=verify_checksum,
+    )
     click.echo(f"  {len(downloaded)} files downloaded")
 
 

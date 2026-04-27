@@ -1,6 +1,6 @@
 name = "maparchive-web"
 compatibility_date = "2025-01-01"
-pages_build_output_dir = "./dist"
+pages_build_output_dir = "./dist/client"
 
 # Uncomment and fill after creating resources:
 # wrangler d1 create maparchive-db

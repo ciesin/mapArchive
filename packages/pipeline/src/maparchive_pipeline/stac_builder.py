@@ -226,6 +226,7 @@ def _build_item(row: ManifestRow) -> pystac.Item:
             "ciesin:page_size": row.page_size,
             "ciesin:page_num": row.page_num,
             "ciesin:filename_original": row.filename,
+            "ciesin:filename_normalized": row.filename_normalized,
             **admin_props,
             **spatial_props,
         },

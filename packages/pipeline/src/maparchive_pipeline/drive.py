@@ -4,6 +4,7 @@ import hashlib
 import pickle
 import threading
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -113,12 +114,33 @@ def download_file(
     return dest_path
 
 
-def build_dest_path(dest_dir: Path, row) -> Path:
+def build_dest_path(dest_dir: Path, row, *, normalized: bool = True) -> Path:
     """Build the local path for a manifest row."""
-    dest_path = dest_dir / row.theme
+    dest_path = dest_dir / row.theme.lower()
     for admin in row.admin_path:
-        dest_path = dest_path / admin
-    return dest_path / row.filename
+        dest_path = dest_path / admin.lower()
+    filename = row.filename_normalized if normalized else row.filename
+    return dest_path / filename
+
+
+def safe_rename(src: Path, dst: Path) -> bool:
+    """Rename with a temp hop when only case changes on case-insensitive FS."""
+    if not src.exists():
+        return False
+    if dst.exists():
+        try:
+            if src.samefile(dst):
+                return True
+        except FileNotFoundError:
+            pass
+        return False
+    if str(src).lower() == str(dst).lower():
+        tmp = dst.with_name(f".__tmp__{dst.name}.{uuid.uuid4().hex}")
+        src.rename(tmp)
+        tmp.rename(dst)
+    else:
+        src.rename(dst)
+    return True
 
 
 def is_retryable_error(error: Exception) -> bool:
@@ -147,15 +169,27 @@ def download_manifest_files(
     downloaded: dict[str, Path] = {}
 
     skipped = 0
+    renamed = 0
     failed: list[str] = []
+    start_time = time.monotonic()
+    last_report = start_time
 
     pending: list[tuple] = []
     for row in manifest_rows:
-        dest_path = build_dest_path(dest_dir, row)
+        dest_path = build_dest_path(dest_dir, row, normalized=True)
+        legacy_path = build_dest_path(dest_dir, row, normalized=False)
         if dest_path.exists():
             downloaded[row.drive_file_id] = dest_path
             skipped += 1
             continue
+        if legacy_path.exists():
+            try:
+                if safe_rename(legacy_path, dest_path):
+                    downloaded[row.drive_file_id] = dest_path
+                    renamed += 1
+                    continue
+            except Exception as e:
+                print(f"\n  ! Failed rename: {legacy_path} — {e}")
         pending.append((row, dest_path))
 
     def download_one(row, dest_path: Path):
@@ -180,6 +214,19 @@ def download_manifest_files(
                     raise
                 time.sleep(min(60, 2 ** attempts))
 
+    def report_speed(completed: int, total: int):
+        nonlocal last_report
+        now = time.monotonic()
+        if now - last_report < 60:
+            return
+        elapsed = now - start_time
+        avg_per_min = completed / max(elapsed / 60, 1e-6)
+        print(
+            f"  [{completed}/{total}] elapsed {elapsed/60:.1f}m avg {avg_per_min:.1f} files/min",
+            end="\r",
+        )
+        last_report = now
+
     if workers <= 1:
         for i, (row, dest_path) in enumerate(pending, 1):
             print(f"  [{i}/{len(pending)}] {row.filename}", end="\r")
@@ -188,6 +235,7 @@ def download_manifest_files(
             except Exception as e:
                 print(f"\n  ! Failed: {row.filename} — {e}")
                 failed.append(row.filename)
+            report_speed(i, len(pending))
     else:
         with ThreadPoolExecutor(max_workers=workers) as executor:
             future_map = {
@@ -209,10 +257,12 @@ def download_manifest_files(
                         f"  [{completed}/{len(pending)}] downloaded",
                         end="\r",
                     )
+                report_speed(completed, len(pending))
 
     print()  # clear the \r line
+    downloaded_count = len(downloaded) - skipped - renamed
     print(
-        f"  Downloaded: {len(downloaded) - skipped}  Skipped (existing): {skipped}  Failed: {len(failed)}"
+        f"  Downloaded: {downloaded_count}  Skipped (existing): {skipped}  Renamed: {renamed}  Failed: {len(failed)}"
     )
     if failed:
         print(f"  Failed files: {', '.join(failed[:10])}" + (" ..." if len(failed) > 10 else ""))

@@ -238,6 +238,27 @@ def _format_date(raw_date):
         return ""
 
 
+def compute_filename_normalized(row: dict) -> str:
+    """Compute canonical lowercase filename from a manifest row."""
+    ext = Path(row.get("filename", "")).suffix.lower()
+    page_size = (row.get("page_size") or "").lower()
+    use_case = (row.get("use_case") or "").lower()
+    admin_parts = [row.get(f"admin{i}") or "" for i in range(5)]
+    page_num = row.get("page_num") or ""
+    date = (row.get("date") or "").replace("-", "")
+
+    parts = [p for p in [page_size, use_case] if p]
+    parts += [a.lower() for a in admin_parts if a]
+    if page_num:
+        parts.append(page_num)
+    if date:
+        parts.append(date)
+
+    if not parts or not ext:
+        return ""
+    return "_".join(parts) + ext
+
+
 def resolve_usecase(use_case):
     """Map a filename useCase to a manifest theme."""
     if not use_case:
@@ -493,6 +514,7 @@ def normalize_page_nums(rows: list[dict]) -> list[dict]:
 MANIFEST_FIELDS = [
     "drive_file_id",
     "filename",
+    "filename_normalized",
     "admin_tree",
     "theme",
     "use_case",
@@ -577,6 +599,8 @@ def run_generate(
     )
     elapsed = time.time() - start
     rows = normalize_page_nums(rows)
+    for row in rows:
+        row["filename_normalized"] = compute_filename_normalized(row)
 
     print(f"\n{'=' * 60}")
     print(f"Scan complete in {elapsed:.1f}s")

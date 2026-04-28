@@ -56,7 +56,7 @@ class ManifestRow(BaseModel):
         Legacy filenames (different convention or use_case) are fully re-expressed.
         """
         ext = Path(self.filename).suffix.lower()
-        parts = [self.page_size.lower(), self.use_case]
+        parts = [self.page_size.lower(), self.use_case.lower()]
         parts += [a.lower() for a in self.admin_path]
         if self.page_num:
             parts.append(self.page_num)
@@ -105,9 +105,10 @@ class ManifestRow(BaseModel):
     @property
     def r2_key(self) -> str:
         """R2 object path: maps/{theme}/{admin_path...}/{use_case}/{filename_normalized}"""
+        theme_slug = self.theme.lower()
         admin_subpath = "/".join(a.lower() for a in self.admin_path)
         use_case_slug = self.use_case.lower() if self.use_case else "uncategorized"
-        return f"maps/{self.theme}/{admin_subpath}/{use_case_slug}/{self.filename_normalized}"
+        return f"maps/{theme_slug}/{admin_subpath}/{use_case_slug}/{self.filename_normalized}"
 
 
 def load_manifest(path: str | Path) -> list[ManifestRow]:

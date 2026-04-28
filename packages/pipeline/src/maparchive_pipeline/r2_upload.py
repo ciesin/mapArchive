@@ -62,9 +62,9 @@ def upload_manifest_files(
 ) -> list[str]:
     """Upload all files from a manifest to R2.
 
-    Local files are located using the same directory structure that
-    `download_manifest_files` creates:
-      local_dir/{theme}/{admin0}/{admin1}/.../{original_filename}
+        Local files are located using the same directory structure that
+        `download_manifest_files` creates:
+            local_dir/{theme}/{admin0}/{admin1}/.../{filename_normalized}
 
     Each file is uploaded to the normalized R2 key (row.r2_key), which uses
     filename_normalized and the canonical lowercase path.
@@ -78,20 +78,26 @@ def upload_manifest_files(
 
     total = len(rows)
     for i, row in enumerate(rows, 1):
-        # Mirror the download path: theme/admin0/admin1/.../original_filename
-        local_path = local_dir / row.theme
+        # Mirror the download path: theme/admin0/admin1/.../filename_normalized
+        local_path = local_dir / row.theme.lower()
         for admin in row.admin_path:
-            local_path = local_path / admin
-        local_path = local_path / row.filename
+            local_path = local_path / admin.lower()
+        normalized_path = local_path / row.filename_normalized
+        legacy_path = local_path / row.filename
 
         print(f"  [{i}/{total}] {row.filename_normalized}", end="\r")
 
-        if not local_path.exists():
-            print(f"\n  ! Not found: {local_path}")
+        if normalized_path.exists():
+            source_path = normalized_path
+        elif legacy_path.exists():
+            source_path = legacy_path
+            print(f"\n  ! Using legacy filename: {legacy_path.name}")
+        else:
+            print(f"\n  ! Not found: {normalized_path}")
             failed.append(row.filename)
             continue
 
-        key = upload_file(client, local_path, row.r2_key)
+        key = upload_file(client, source_path, row.r2_key)
         uploaded.append(key)
 
     print()

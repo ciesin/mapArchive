@@ -2,15 +2,13 @@ name = "maparchive-web"
 compatibility_date = "2025-01-01"
 pages_build_output_dir = "./dist/client"
 
-# Uncomment and fill after creating resources:
-# wrangler d1 create maparchive-db
-# wrangler r2 bucket create maparchive-maps
+# wrangler d1 create archive-db
 
 # [[d1_databases]]
 # binding = "DB"
-# database_name = "maparchive-db"
+# database_name = "archive-db"
 # database_id = ""
 
 # [[r2_buckets]]
 # binding = "R2"
-# bucket_name = "maparchive-maps"
+# bucket_name = "ciesin-dev"

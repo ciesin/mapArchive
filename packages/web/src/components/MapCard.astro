@@ -1,27 +1,23 @@
 ---
-import { getThumbnailUrl } from '../lib/images';
-
 interface Props {
-  id: string;
+  href: string;
   title: string;
   description?: string | null;
   theme?: string | null;
-  admin0?: string | null;
-  area?: string | null;
+  spatialLevel?: string | null;
   datetime?: string | null;
-  assetHref?: string | null;
+  thumbnailUrl?: string | null;
 }
 
-const { id, title, description, theme, admin0, area, datetime, assetHref } = Astro.props;
-const thumbnailSrc = assetHref ? getThumbnailUrl(assetHref) : '';
+const { href, title, description, theme, spatialLevel, datetime, thumbnailUrl } = Astro.props;
 const dateStr = datetime ? new Date(datetime).getFullYear().toString() : '';
-const badgeClass = theme ? `badge badge-${theme}` : 'badge';
+const badgeClass = theme ? `badge badge-${theme.replaceAll(':', '-')}` : 'badge';
 ---
 
-<a href={`/map/${id}`} class="card">
+<a href={href} class="card">
   <div class="card-image-wrapper">
-    {thumbnailSrc ? (
-      <img src={thumbnailSrc} alt={title} class="card-image" loading="lazy" />
+    {thumbnailUrl ? (
+      <img src={thumbnailUrl} alt={title} class="card-image" loading="lazy" />
     ) : (
       <div class="card-image card-image-placeholder"></div>
     )}
@@ -30,8 +26,7 @@ const badgeClass = theme ? `badge badge-${theme}` : 'badge';
     <h3 class="card-title">{title}</h3>
     <div class="card-meta">
       {theme && <span class={badgeClass}>{theme}</span>}
-      {admin0 && <span class="card-tag">{admin0}</span>}
-      {area && <span class="card-tag">{area}</span>}
+      {spatialLevel && <span class="card-tag">{spatialLevel}</span>}
       {dateStr && <span class="card-tag">{dateStr}</span>}
     </div>
     {description && <p class="card-desc">{description}</p>}

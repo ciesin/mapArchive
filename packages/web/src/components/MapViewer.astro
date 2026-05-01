@@ -1,24 +1,21 @@
 ---
-import { getDetailUrl, getFullResUrl } from '../lib/images';
-
 interface Props {
-  assetHref: string;
+  overviewUrl: string;
+  originalUrl: string;
   title: string;
 }
 
-const { assetHref, title } = Astro.props;
-const detailSrc = getDetailUrl(assetHref);
-const fullResSrc = getFullResUrl(assetHref);
+const { overviewUrl, originalUrl, title } = Astro.props;
 ---
 
 <div class="viewer-wrapper">
   <div class="viewer-toolbar">
-    <a href={fullResSrc} target="_blank" rel="noopener" class="btn">
+    <a href={originalUrl} target="_blank" rel="noopener" class="btn">
       Full Resolution
     </a>
   </div>
   <div class="map-viewer">
-    <img src={detailSrc} alt={title} />
+    <img src={overviewUrl} alt={title} />
   </div>
 </div>
 

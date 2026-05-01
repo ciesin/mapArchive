@@ -1,0 +1,274 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import CatalogBreadcrumb from '../../components/CatalogBreadcrumb.astro';
+import MapCard from '../../components/MapCard.astro';
+import {
+  fetchCollection,
+  fetchItemsByLinks,
+  collectionUrl,
+  extractChildSlug,
+  slugToLabel,
+} from '../../lib/stac-client';
+
+const MAPS_PREVIEW    = 4;   // cards shown before "see all" accordion
+const CHILDREN_PREVIEW = 12; // rows shown before "show more" accordion
+const ITEMS_FETCH_CAP  = 50; // max items fetched per request
+
+const slugParam = Astro.params.slug ?? '';
+
+if (!slugParam) {
+  return Astro.redirect('/catalog');
+}
+
+const slugParts = slugParam.split('/');
+
+let collection;
+try {
+  collection = await fetchCollection(slugParam);
+} catch {
+  return Astro.redirect('/catalog');
+}
+
+const baseUrl = collectionUrl(slugParam);
+
+const childLinks    = collection.links.filter((l) => l.rel === 'child');
+const allItemLinks  = collection.links.filter((l) => l.rel === 'item');
+
+// Fetch items up to cap; show count note if catalog has more
+const fetchableLinks = allItemLinks.slice(0, ITEMS_FETCH_CAP);
+const items = await fetchItemsByLinks(fetchableLinks, baseUrl);
+
+const previewItems    = items.slice(0, MAPS_PREVIEW);
+const remainingItems  = items.slice(MAPS_PREVIEW);
+const moreThanFetched = allItemLinks.length > ITEMS_FETCH_CAP;
+
+const previewChildren   = childLinks.slice(0, CHILDREN_PREVIEW);
+const remainingChildren = childLinks.slice(CHILDREN_PREVIEW);
+
+const breadcrumbSegments = [
+  { label: 'Catalog', href: '/catalog' },
+  ...slugParts.map((part, i) => ({
+    label: i === slugParts.length - 1 ? collection.title : slugToLabel(part),
+    href: i < slugParts.length - 1 ? `/browse/${slugParts.slice(0, i + 1).join('/')}` : undefined,
+  })),
+];
+---
+
+<BaseLayout title={collection.title} description={collection.description}>
+  <div class="container section">
+    <CatalogBreadcrumb segments={breadcrumbSegments} />
+
+    <h1 class="section-title">{collection.title}</h1>
+    {collection.description && (
+      <p class="collection-desc">{collection.description}</p>
+    )}
+
+    {/* ── Maps (shown first) ── */}
+    {items.length > 0 && (
+      <section class="items-section">
+        <h2 class="subsection-heading">
+          Maps
+          <span class="count-badge">{allItemLinks.length}</span>
+        </h2>
+
+        <div class="card-grid">
+          {previewItems.map((item) => (
+            <MapCard
+              href={`/map/${slugParam}/${item.id}`}
+              title={item.properties.title}
+              description={item.properties.description}
+              theme={item.properties['ciesin:theme']}
+              spatialLevel={item.properties['ciesin:spatial_level']}
+              datetime={item.properties.datetime}
+              thumbnailUrl={item.assets.thumbnail?.href ?? item.assets.overview?.href ?? null}
+            />
+          ))}
+        </div>
+
+        {remainingItems.length > 0 && (
+          <details class="see-more">
+            <summary>
+              <span class="see-more-icon" aria-hidden="true">▸</span>
+              See all {items.length} maps
+            </summary>
+            <div class="card-grid see-more-grid">
+              {remainingItems.map((item) => (
+                <MapCard
+                  href={`/map/${slugParam}/${item.id}`}
+                  title={item.properties.title}
+                  description={item.properties.description}
+                  theme={item.properties['ciesin:theme']}
+                  spatialLevel={item.properties['ciesin:spatial_level']}
+                  datetime={item.properties.datetime}
+                  thumbnailUrl={item.assets.thumbnail?.href ?? item.assets.overview?.href ?? null}
+                />
+              ))}
+            </div>
+            {moreThanFetched && (
+              <p class="cap-note">
+                Showing first {ITEMS_FETCH_CAP} of {allItemLinks.length} maps.
+                Sub-collections below contain additional items.
+              </p>
+            )}
+          </details>
+        )}
+      </section>
+    )}
+
+    {/* ── Sub-collections (shown second) ── */}
+    {childLinks.length > 0 && (
+      <section class="children-section">
+        <h2 class="subsection-heading">
+          Sub-collections
+          <span class="count-badge">{childLinks.length}</span>
+        </h2>
+
+        <div class="child-list">
+          {previewChildren.map((link) => {
+            const childSlug = extractChildSlug(link.href);
+            return (
+              <a href={`/browse/${slugParam}/${childSlug}`} class="child-row">
+                <span>{link.title ?? slugToLabel(childSlug)}</span>
+                <span class="arrow" aria-hidden="true">→</span>
+              </a>
+            );
+          })}
+        </div>
+
+        {remainingChildren.length > 0 && (
+          <details class="see-more">
+            <summary>
+              <span class="see-more-icon" aria-hidden="true">▸</span>
+              Show {remainingChildren.length} more sub-collections
+            </summary>
+            <div class="child-list see-more-list">
+              {remainingChildren.map((link) => {
+                const childSlug = extractChildSlug(link.href);
+                return (
+                  <a href={`/browse/${slugParam}/${childSlug}`} class="child-row">
+                    <span>{link.title ?? slugToLabel(childSlug)}</span>
+                    <span class="arrow" aria-hidden="true">→</span>
+                  </a>
+                );
+              })}
+            </div>
+          </details>
+        )}
+      </section>
+    )}
+
+    {childLinks.length === 0 && items.length === 0 && (
+      <p class="empty-state">No content in this collection yet.</p>
+    )}
+  </div>
+</BaseLayout>
+
+<style>
+  .collection-desc {
+    color: var(--color-text-muted);
+    margin-bottom: 2rem;
+    max-width: 700px;
+  }
+
+  /* ── Section headings ── */
+  .items-section {
+    margin-bottom: 2.5rem;
+  }
+  .children-section {
+    margin-top: 0;
+  }
+  .subsection-heading {
+    font-size: 1.125rem;
+    margin-bottom: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .count-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 0.0625rem 0.5rem;
+    line-height: 1.6;
+  }
+
+  /* ── Sub-collection list ── */
+  .child-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+  .child-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.875rem 1.125rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    color: inherit;
+    text-decoration: none;
+    font-size: 0.9375rem;
+    transition: box-shadow 0.15s;
+  }
+  .child-row:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+  }
+  .arrow {
+    color: var(--color-text-muted);
+  }
+
+  /* ── "See all" accordion ── */
+  .see-more {
+    margin-top: 0.75rem;
+  }
+  .see-more > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-primary);
+    padding: 0.375rem 0;
+    list-style: none;
+    user-select: none;
+  }
+  .see-more > summary::-webkit-details-marker {
+    display: none;
+  }
+  .see-more > summary:hover {
+    text-decoration: underline;
+  }
+  .see-more-icon {
+    display: inline-block;
+    transition: transform 0.15s ease;
+    font-size: 0.75rem;
+  }
+  .see-more[open] > summary .see-more-icon {
+    transform: rotate(90deg);
+  }
+  .see-more-grid {
+    margin-top: 1rem;
+  }
+  .see-more-list {
+    margin-top: 0.5rem;
+  }
+  .cap-note {
+    margin-top: 1rem;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    color: var(--color-text-muted);
+    padding: 3rem 0;
+    text-align: center;
+  }
+</style>

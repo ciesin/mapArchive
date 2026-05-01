@@ -1,0 +1,121 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import CatalogBreadcrumb from '../../components/CatalogBreadcrumb.astro';
+import MapViewer from '../../components/MapViewer.astro';
+import { stacBase, slugToLabel, fetchItem } from '../../lib/stac-client';
+
+const slugParam = Astro.params.slug ?? '';
+const parts = slugParam.split('/').filter(Boolean);
+
+if (parts.length < 2) {
+  return Astro.redirect('/catalog');
+}
+
+const itemId = parts[parts.length - 1];
+const collectionSlug = parts.slice(0, -1).join('/');
+
+const itemUrl = `${stacBase()}/${collectionSlug}/${itemId}/${itemId}.json`;
+
+let item;
+try {
+  item = await fetchItem(itemUrl);
+} catch {
+  return new Response('Map not found', { status: 404 });
+}
+
+const props = item.properties;
+const theme = props['ciesin:theme'];
+const spatialLevel = props['ciesin:spatial_level'];
+const useCase = props['ciesin:use_case'];
+const pageNum = props['ciesin:page_num'];
+
+const overviewUrl = item.assets.overview?.href ?? item.assets.original?.href ?? '';
+const originalUrl = item.assets.original?.href ?? '';
+
+const collectionParts = collectionSlug.split('/');
+const breadcrumbSegments = [
+  { label: 'Catalog', href: '/catalog' },
+  ...collectionParts.map((part, i) => ({
+    label: slugToLabel(part),
+    href: `/browse/${collectionParts.slice(0, i + 1).join('/')}`,
+  })),
+  { label: props.title },
+];
+---
+
+<BaseLayout title={props.title} description={props.description}>
+  <div class="container section">
+    <CatalogBreadcrumb segments={breadcrumbSegments} />
+
+    <h1 class="map-title">{props.title}</h1>
+
+    <div class="map-meta">
+      {theme && (
+        <span class={`badge badge-${theme.replaceAll(':', '-')}`}>{theme}</span>
+      )}
+      {spatialLevel && <span class="meta-item">{spatialLevel}</span>}
+      {useCase && <span class="meta-item">{useCase.replaceAll('-', ' ')}</span>}
+      {pageNum && <span class="meta-item">p.{pageNum}</span>}
+      {props.datetime && (
+        <span class="meta-item">
+          {new Date(props.datetime).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+        </span>
+      )}
+    </div>
+
+    {props.description && (
+      <p class="map-description">{props.description}</p>
+    )}
+
+    <MapViewer overviewUrl={overviewUrl} originalUrl={originalUrl} title={props.title} />
+
+    <details class="stac-details">
+      <summary>STAC Metadata (JSON)</summary>
+      <pre><code>{JSON.stringify(item, null, 2)}</code></pre>
+    </details>
+  </div>
+</BaseLayout>
+
+<style>
+  .map-title {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+  }
+  .map-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  .meta-item {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    text-transform: capitalize;
+  }
+  .map-description {
+    color: var(--color-text-muted);
+    margin-bottom: 1.5rem;
+    max-width: 700px;
+  }
+  .stac-details {
+    margin-top: 2rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+  }
+  .stac-details summary {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+  .stac-details pre {
+    padding: 1rem;
+    overflow-x: auto;
+    font-size: 0.8125rem;
+    background: var(--color-bg);
+    border-top: 1px solid var(--color-border);
+  }
+</style>

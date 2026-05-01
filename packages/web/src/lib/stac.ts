@@ -19,6 +19,8 @@ export interface STACCollection {
     temporal: { interval: (string | null)[][] };
   };
   links: STACLink[];
+  'ciesin:theme'?: string;
+  'ciesin:admin_path'?: string[];
 }
 
 export interface STACItem {
@@ -37,10 +39,18 @@ export interface STACItemProperties {
   title: string;
   description?: string;
   datetime: string;
-  admin0?: string;
-  area?: string;
-  theme?: string;
   [key: string]: unknown;
+  'ciesin:theme'?: string;
+  'ciesin:use_case'?: string;
+  'ciesin:admin_level'?: number;
+  'ciesin:page_size'?: string;
+  'ciesin:page_num'?: string;
+  'ciesin:filename_original'?: string;
+  'ciesin:filename_normalized'?: string;
+  'ciesin:admin0'?: string;
+  'ciesin:admin1'?: string;
+  'ciesin:admin2'?: string;
+  'ciesin:spatial_level'?: string;
 }
 
 export interface STACAsset {

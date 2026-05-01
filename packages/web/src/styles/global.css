@@ -33,8 +33,9 @@
   --color-primary:          #1D4F91;
   --color-primary-hover:    #163d70;
   --color-border:           #dee2e6;
-  --color-badge-climate:    #059669;
-  --color-badge-population: #7c3aed;
+  --color-badge-climate:        #059669;
+  --color-badge-population:     #7c3aed;
+  --color-badge-public-health:  #2563eb;
 
   --radius:     6px;
   --max-width:  1200px;
@@ -344,8 +345,9 @@ pre {
   font-weight: 500;
   color: white;
 }
-.badge-climate    { background: var(--color-badge-climate); }
-.badge-population { background: var(--color-badge-population); }
+.badge-climate        { background: var(--color-badge-climate); }
+.badge-population     { background: var(--color-badge-population); }
+.badge-public-health  { background: var(--color-badge-public-health); }
 
 /* ── Buttons ── */
 .btn {

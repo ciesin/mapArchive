@@ -62,7 +62,7 @@ USECASE_TRANSFORMS = {
 DEFAULT_IGNORE_FOLDERS = ["old", "archive", "check", "draft", "backup", "test", "project_extension - simplified maps jpg"]
 
 # for now
-DEFAULT_THEME = "health"
+DEFAULT_THEME = "public-health"
 
 # Default license and attribution for generated manifest rows.
 DEFAULT_LICENSE = "CC-BY-4.0"

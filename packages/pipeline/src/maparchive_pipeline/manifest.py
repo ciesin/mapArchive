@@ -104,11 +104,10 @@ class ManifestRow(BaseModel):
 
     @property
     def r2_key(self) -> str:
-        """R2 object path: maps/{theme}/{admin_path...}/{use_case}/{filename_normalized}"""
+        """R2 object path: maps/{theme}/{admin_path...}/{filename_normalized}"""
         theme_slug = self.theme.lower()
         admin_subpath = "/".join(a.lower() for a in self.admin_path)
-        use_case_slug = self.use_case.lower() if self.use_case else "uncategorized"
-        return f"maps/{theme_slug}/{admin_subpath}/{use_case_slug}/{self.filename_normalized}"
+        return f"maps/{theme_slug}/{admin_subpath}/{self.filename_normalized}"
 
 
 def load_manifest(path: str | Path) -> list[ManifestRow]:

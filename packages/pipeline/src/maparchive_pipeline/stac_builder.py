@@ -20,6 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 import pystac
+from pystac import layout
 
 from .config import R2_PUBLIC_URL, CF_IMAGES_ZONE
 from .manifest import ManifestRow
@@ -54,7 +55,8 @@ def build_catalog(
         catalog.add_child(theme_collection)
         _build_aoi_hierarchy(theme_collection, theme_rows)
 
-    catalog.normalize_hrefs(str(output_dir))
+    layout_strategy = _build_nested_layout_strategy(output_dir)
+    catalog.normalize_hrefs(str(output_dir), strategy=layout_strategy)
     catalog.save(catalog_type=pystac.CatalogType.SELF_CONTAINED)
 
     return catalog
@@ -100,6 +102,8 @@ def _build_aoi_hierarchy(
             license=first_row.license,
             providers=_build_providers(first_row.source_attribution),
         )
+        coll.extra_fields["ciesin:theme"] = first_row.theme.lower()
+        coll.extra_fields["ciesin:admin_path"] = list(prefix)
 
         parent: pystac.STACObject = (
             theme_collection if len(prefix) == 1 else aoi_collections[prefix[:-1]]
@@ -119,7 +123,7 @@ def _build_aoi_hierarchy(
 
 def _build_theme_collection(theme: str, rows: list[ManifestRow]) -> pystac.Collection:
     """Create the top-level theme Collection with aggregate extent."""
-    return pystac.Collection(
+    collection = pystac.Collection(
         id=theme,
         title=f"{theme.replace('-', ' ').title()} Maps",
         description=f"Archive of {theme.replace('-', ' ')} maps.",
@@ -127,6 +131,9 @@ def _build_theme_collection(theme: str, rows: list[ManifestRow]) -> pystac.Colle
         license=rows[0].license if rows else "proprietary",
         providers=_build_providers(rows[0].source_attribution if rows else ""),
     )
+    collection.extra_fields["ciesin:theme"] = theme.lower()
+    collection.extra_fields["ciesin:admin_path"] = []
+    return collection
 
 
 def _compute_extent(rows: list[ManifestRow]) -> pystac.Extent:
@@ -292,3 +299,43 @@ def _guess_media_type(filename: str) -> str:
         ".tiff": pystac.MediaType.GEOTIFF,
         ".pdf":  "application/pdf",
     }.get(ext, "application/octet-stream")
+
+
+def _build_nested_layout_strategy(output_dir: Path) -> layout.CustomLayoutStrategy:
+    base_dir = Path(output_dir)
+
+    def _catalog_href(cat: pystac.Catalog, _parent_dir: str, is_root: bool) -> str:
+        if is_root:
+            return str(base_dir / cat.DEFAULT_FILE_NAME)
+        return str(base_dir / cat.id / cat.DEFAULT_FILE_NAME)
+
+    def _collection_href(col: pystac.Collection, _parent_dir: str, _is_root: bool) -> str:
+        theme = col.extra_fields.get("ciesin:theme", "unknown")
+        admin_path = col.extra_fields.get("ciesin:admin_path", [])
+        if admin_path:
+            return str(base_dir / theme / Path(*admin_path) / col.DEFAULT_FILE_NAME)
+        return str(base_dir / theme / col.DEFAULT_FILE_NAME)
+
+    def _item_href(item: pystac.Item, _parent_dir: str) -> str:
+        theme = item.properties.get("ciesin:theme", "unknown")
+        admin_path = _item_admin_path(item)
+        return str(
+            base_dir / theme / Path(*admin_path) / item.id / f"{item.id}.json"
+        )
+
+    return layout.CustomLayoutStrategy(
+        catalog_func=_catalog_href,
+        collection_func=_collection_href,
+        item_func=_item_href,
+    )
+
+
+def _item_admin_path(item: pystac.Item) -> list[str]:
+    levels = [
+        item.properties.get("ciesin:admin0"),
+        item.properties.get("ciesin:admin1"),
+        item.properties.get("ciesin:admin2"),
+        item.properties.get("ciesin:admin3"),
+        item.properties.get("ciesin:admin4"),
+    ]
+    return [lvl.lower() for lvl in levels if lvl]

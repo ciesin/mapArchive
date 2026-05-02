@@ -1,12 +1,4 @@
-import type { STACCollection, STACItem, SearchParams, SearchResult, ItemSummary } from './stac';
-
-/**
- * D1 query helpers.
- *
- * These accept a D1Database binding and return typed results.
- * In the skeleton phase, pages use mock-data.ts instead.
- * Wire these up once D1 is provisioned.
- */
+import type { STACCollection, STACItem, SearchParams, SearchResult } from './stac';
 
 export async function getCollections(db: D1Database): Promise<STACCollection[]> {
   const { results } = await db.prepare('SELECT stac_json FROM collections ORDER BY id').all();
@@ -51,29 +43,34 @@ export async function searchItems(db: D1Database, params: SearchParams): Promise
   const limit = params.limit ?? 20;
   const offset = params.offset ?? 0;
 
-  const countQuery = `SELECT COUNT(*) as total FROM items ${where}`;
-  const countRow = await db.prepare(countQuery).bind(...bindings).first<{ total: number }>();
+  const countRow = await db
+    .prepare(`SELECT COUNT(*) as total FROM items ${where}`)
+    .bind(...bindings)
+    .first<{ total: number }>();
   const total = countRow?.total ?? 0;
 
-  const dataQuery = `SELECT stac_json FROM items ${where} ORDER BY datetime DESC LIMIT ? OFFSET ?`;
-  const { results } = await db.prepare(dataQuery).bind(...bindings, limit, offset).all();
+  const { results } = await db
+    .prepare(`SELECT stac_json FROM items ${where} ORDER BY datetime DESC LIMIT ? OFFSET ?`)
+    .bind(...bindings, limit, offset)
+    .all();
   const items = results.map((row: Record<string, unknown>) => JSON.parse(row.stac_json as string));
 
   return { items, total, limit, offset };
 }
 
-export async function getItemsByCollection(
+export async function getItemsByCollectionPath(
   db: D1Database,
-  collectionId: string,
-  admin0?: string,
-): Promise<ItemSummary[]> {
-  let query = 'SELECT id, collection_id, title, description, datetime, admin0, area, theme, asset_href, asset_type FROM items WHERE collection_id = ?';
-  const bindings: unknown[] = [collectionId];
-  if (admin0) {
-    query += ' AND admin0 = ?';
-    bindings.push(admin0);
+  adminPath: string[],   // e.g. ['cod', 'haut-katanga']
+  adminLevel?: number,
+): Promise<STACItem[]> {
+  const pathJson = JSON.stringify(adminPath);
+  let query = 'SELECT stac_json FROM items WHERE admin_path = ?';
+  const bindings: unknown[] = [pathJson];
+  if (adminLevel !== undefined) {
+    query += ' AND admin_level = ?';
+    bindings.push(adminLevel);
   }
   query += ' ORDER BY datetime DESC';
-  const { results } = await db.prepare(query).bind(...bindings).all<ItemSummary>();
-  return results;
+  const { results } = await db.prepare(query).bind(...bindings).all();
+  return results.map((row: Record<string, unknown>) => JSON.parse(row.stac_json as string));
 }

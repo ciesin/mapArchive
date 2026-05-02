@@ -2,13 +2,12 @@ name = "maparchive-web"
 compatibility_date = "2025-01-01"
 pages_build_output_dir = "./dist/client"
 
-# wrangler d1 create archive-db
+[[d1_databases]]
+binding = "ciesin_stac"
+database_name = "ciesin-stac"
+database_id = "e4bcc341-76cb-437c-9f3d-69c8c1c1da0f"
 
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "archive-db"
-# database_id = ""
-
+# Uncomment when you want direct Worker→R2 reads (bypasses CDN):
 # [[r2_buckets]]
-# binding = "R2"
+# binding     = "R2"
 # bucket_name = "ciesin-dev"

@@ -18,6 +18,9 @@ const pageTitle = title === 'CIESIN Map Archive' ? title : `${title} | CIESIN Ma
     <meta name="description" content={description} />
     <title>{pageTitle}</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" />
   </head>
   <body>
     <nav class="nav">
@@ -26,7 +29,7 @@ const pageTitle = title === 'CIESIN Map Archive' ? title : `${title} | CIESIN Ma
           <img
             src="/Columbia_University_Logo-Crown_white.png"
             alt="Columbia University logo"
-            style="height: 28px; width: auto; display: block;"
+            class="nav-logo"
           />
         </a>
 

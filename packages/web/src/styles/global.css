@@ -3,8 +3,6 @@
    Mirrors CIESIN Quarto design system; adapted for Astro/static
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
-
 /* ── Reset ── */
 *,
 *::before,
@@ -73,6 +71,17 @@ html {
   color: var(--color-text);
   background: var(--color-bg);
   line-height: 1.6;
+  scrollbar-gutter: stable;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -198,6 +207,11 @@ pre {
   text-decoration: none;
 }
 
+.nav-logo {
+  height: 28px;
+  width: auto;
+}
+
 .nav-links {
   display: flex;
   align-items: center;
@@ -292,7 +306,7 @@ pre {
 .card-image-placeholder {
   width: 100%;
   aspect-ratio: 4 / 3;
-  background: linear-gradient(135deg, var(--ciesin-brand) 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
 }
 
 .card-body {
@@ -314,15 +328,15 @@ pre {
   gap: 0.375rem;
   font-size: 0.8125rem;
   color: var(--color-text-muted);
-  margin-bottom: 0.375rem;
+  margin-top: 0.25rem;
 }
 
 .card-tag {
   font-size: 0.75rem;
   color: var(--color-text-muted);
-  background: var(--color-border);
-  border-radius: 3px;
-  padding: 0.1rem 0.4rem;
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 0.0625rem 0.375rem;
 }
 
 .card-desc {
@@ -333,7 +347,7 @@ pre {
   -webkit-box-orient: vertical;
   line-clamp: 2;
   overflow: hidden;
-  margin-top: 0.375rem;
+  margin-top: 0.5rem;
 }
 
 /* ── Badges ── */
@@ -382,6 +396,11 @@ pre {
   color: white;
 }
 
+.btn-full {
+  width: 100%;
+  justify-content: center;
+}
+
 /* ── Search ── */
 .search-form {
   display: flex;
@@ -391,6 +410,7 @@ pre {
 
 .search-input {
   width: 100%;
+  flex: 1;
   padding: 0.625rem 1rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -526,6 +546,7 @@ pre {
 .meta-item {
   font-size: 0.875rem;
   color: var(--color-text-muted);
+  text-transform: capitalize;
 }
 
 .map-description {
@@ -538,7 +559,7 @@ pre {
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   overflow: hidden;
-  margin-top: 1.5rem;
+  margin-top: 2rem;
 }
 
 .stac-details summary {
@@ -554,8 +575,8 @@ pre {
 .stac-details pre {
   margin: 0;
   padding: 1rem;
-  background: var(--ciesin-code-bg);
-  border-left: 0.2rem solid var(--ciesin-code-border);
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
   font-size: 0.8125rem;
   overflow-x: auto;
 }
@@ -588,6 +609,21 @@ pre {
   box-shadow: 0 4px 12px var(--ciesin-shadow);
   transform: translateY(-1px);
   text-decoration: none;
+}
+
+.collection-row h2 {
+  font-size: 1.125rem;
+  border-left: none;
+  padding-left: 0;
+  padding-bottom: 0;
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+}
+
+.collection-row p {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0;
 }
 
 .collection-meta {
@@ -630,23 +666,72 @@ pre {
   max-width: 700px;
 }
 
+.about-content p {
+  line-height: 1.7;
+}
+
 .about-content h2 {
-  margin-top: 2rem;
+  font-size: 1.25rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
 }
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
+  .container {
+    padding: 0 1.75rem;
+  }
+
   .search-layout {
     grid-template-columns: 1fr;
+  }
+
+  .collection-row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .collection-meta {
+    align-items: flex-start;
+  }
+
+  .map-title {
+    font-size: 1.375rem;
   }
 }
 
 @media (max-width: 640px) {
+  .container {
+    padding: 0 1.5rem;
+  }
+
+  .section {
+    padding: 1.5rem 0;
+  }
+
+  .section-title {
+    font-size: 1.25rem;
+  }
+
   .card-grid {
     grid-template-columns: 1fr;
   }
 
   .nav-links {
-    gap: 1rem;
+    gap: 0.75rem;
+  }
+
+  .nav-links a {
+    font-size: 0.8125rem;
+  }
+
+  .child-row {
+    padding: 0.75rem 0.875rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 1.25rem;
   }
 }

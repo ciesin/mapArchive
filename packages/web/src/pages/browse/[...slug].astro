@@ -13,7 +13,7 @@ import {
 } from '../../lib/stac-client';
 
 const MAPS_PREVIEW    = 4;   // cards shown before "see all" accordion
-const CHILDREN_PREVIEW = 12; // rows shown before "show more" accordion
+const CHILDREN_PREVIEW = 8; // rows shown before "show more" accordion
 const ITEMS_FETCH_CAP  = 50; // max items fetched per request
 
 const slugParam = Astro.params.slug ?? '';
@@ -65,7 +65,7 @@ const breadcrumbSegments = [
       <p class="collection-desc">{collection.description}</p>
     )}
 
-    {/* ── Maps (shown first) ── */}
+    {/*  Maps  */}
     {items.length > 0 && (
       <section class="items-section">
         <h2 class="subsection-heading">
@@ -117,7 +117,7 @@ const breadcrumbSegments = [
       </section>
     )}
 
-    {/* ── Sub-collections (shown second) ── */}
+    {/*  Sub-collections  */}
     {childLinks.length > 0 && (
       <section class="children-section">
         <h2 class="subsection-heading">
@@ -172,7 +172,7 @@ const breadcrumbSegments = [
     max-width: 700px;
   }
 
-  /* ── Section headings ── */
+  /*  Section headings  */
   .items-section {
     margin-bottom: 2.5rem;
   }
@@ -197,7 +197,7 @@ const breadcrumbSegments = [
     line-height: 1.6;
   }
 
-  /* ── Sub-collection list ── */
+  /*  Sub-collection list  */
   .child-list {
     display: flex;
     flex-direction: column;
@@ -223,7 +223,7 @@ const breadcrumbSegments = [
     color: var(--color-text-muted);
   }
 
-  /* ── "See all" accordion ── */
+  /*  "See all" accordion  */
   .see-more {
     margin-top: 0.75rem;
   }
@@ -265,7 +265,7 @@ const breadcrumbSegments = [
     color: var(--color-text-muted);
   }
 
-  /* ── Empty state ── */
+  /*  Empty state  */
   .empty-state {
     color: var(--color-text-muted);
     padding: 3rem 0;

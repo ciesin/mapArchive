@@ -7,11 +7,13 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   <section class="hero">
     <div class="container hero-inner">
       <div class="hero-logo-wrap">
+        <a href="https://ciesin.columbia.edu/">
         <img
           src="/CIESIN_TransparentBackground_BlueText.png"
           alt="CIESIN – Center for International Earth Science Information Network"
           class="hero-logo"
         />
+        </a>
       </div>
       <!-- <p class="hero-sub">Center for International Earth Science Information Network</p>
       <h1 class="hero-title">Map Archive</h1>
@@ -74,6 +76,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 </BaseLayout>
 
 <style>
+
   .hero {
     background: #ffffff;
     border-bottom: 1px solid var(--color-border);
@@ -124,4 +127,5 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       filter: brightness(0) invert(1);
     }
   }
+
 </style>

@@ -26,38 +26,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     </div>
   </section>
 
-  <div class="container">
-    <!-- <div class="about-content section">
-
-      <h2>About CIESIN</h2>
-      <p>
-        The <a href="https://www.ciesin.columbia.edu/">Center for International Earth Science
-        Information Network (CIESIN)</a> is a research center in the
-        <a href="https://www.earth.columbia.edu/">Columbia Climate School</a> at Columbia University.
-        CIESIN works at the intersection of the social, natural, and information sciences to understand
-        human interactions with the environment, providing data and tools that support global research,
-        sustainable development, and humanitarian operations.
-      </p>
-      <p>
-        CIESIN hosts the NASA Socioeconomic Data and Applications Center (SEDAC), one of the Distributed
-        Active Archive Centers in NASA's Earth Observing System Data and Information System, and is a
-        leading producer of global demographic and environmental datasets.
-      </p>
-
-      <h2>GRID3</h2>
-      <p>
-        The <a href="https://grid3.org/">Geo-Referenced Infrastructure and Demographic Data for
-        Development (GRID3)</a> program supports governments and partners across sub-Saharan Africa
-        with high-resolution population estimates, settlement mapping, and administrative boundary data
-        for planning, resource allocation, and monitoring.
-      </p>
-      <p>
-        This archive includes maps produced through GRID3's collaboration with
-        <a href="https://www.gavi.org/">Gavi, the Vaccine Alliance</a>'s Equity Accelerator Fund (EAF),
-        supporting immunization equity initiatives — beginning with the Democratic Republic of the Congo.
-      </p> -->
-
-      <h2>This Archive</h2>
+  <div class="container" id="home-text">
 	  <br>
       <p>
         The <strong>CIESIN Map Archive</strong> is a searchable digital archive of high-resolution static maps
@@ -108,6 +77,13 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     flex-wrap: wrap;
     justify-content: center;
     margin-top: 0.5rem;
+  }
+
+  #home-text {
+    max-width: 700px;
+    margin: 2rem auto;
+    font-size: 1.125rem;
+    line-height: 1.6;
   }
 
   @media (max-width: 640px) {

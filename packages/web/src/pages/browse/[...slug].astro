@@ -47,12 +47,21 @@ const moreThanFetched = allItemLinks.length > ITEMS_FETCH_CAP;
 const previewChildren   = childLinks.slice(0, CHILDREN_PREVIEW);
 const remainingChildren = childLinks.slice(CHILDREN_PREVIEW);
 
+// slugParts[0] is the theme; admin levels start at index 1, aligned with admin_path / spatial_level_path
+const spatialLevelPath = collection['ciesin:spatial_level_path'] ?? [];
+
 const breadcrumbSegments = [
   { label: 'Catalog', href: '/catalog' },
-  ...slugParts.map((part, i) => ({
-    label: i === slugParts.length - 1 ? collection.title : slugToLabel(part),
-    href: i < slugParts.length - 1 ? `/browse/${slugParts.slice(0, i + 1).join('/')}` : undefined,
-  })),
+  ...slugParts.map((part, i) => {
+    const isLast = i === slugParts.length - 1;
+    const adminIndex = i - 1; // -1 for the theme segment, 0+ for admin levels
+    const spatialLevel = adminIndex >= 0 ? (spatialLevelPath[adminIndex] || undefined) : undefined;
+    return {
+      label: isLast ? collection.title : slugToLabel(part),
+      spatialLevel,
+      href: isLast ? undefined : `/browse/${slugParts.slice(0, i + 1).join('/')}`,
+    };
+  }),
 ];
 ---
 
@@ -60,7 +69,12 @@ const breadcrumbSegments = [
   <div class="container section">
     <CatalogBreadcrumb segments={breadcrumbSegments} />
 
-    <h1 class="section-title">{collection.title}</h1>
+    <h1 class="section-title">
+      {collection.title}
+      {collection['ciesin:spatial_level'] && (
+        <span class="spatial-chip">{collection['ciesin:spatial_level']}</span>
+      )}
+    </h1>
     {collection.description && (
       <p class="collection-desc">{collection.description}</p>
     )}
@@ -130,7 +144,12 @@ const breadcrumbSegments = [
             const childSlug = extractChildSlug(link.href);
             return (
               <a href={`/browse/${slugParam}/${childSlug}`} class="child-row">
-                <span>{link.title ?? slugToLabel(childSlug)}</span>
+                <span>
+                  {link.title ?? slugToLabel(childSlug)}
+                  {link['ciesin:spatial_level'] && (
+                    <span class="child-level">{link['ciesin:spatial_level']}</span>
+                  )}
+                </span>
                 <span class="arrow" aria-hidden="true">→</span>
               </a>
             );
@@ -148,7 +167,12 @@ const breadcrumbSegments = [
                 const childSlug = extractChildSlug(link.href);
                 return (
                   <a href={`/browse/${slugParam}/${childSlug}`} class="child-row">
-                    <span>{link.title ?? slugToLabel(childSlug)}</span>
+                    <span>
+                      {link.title ?? slugToLabel(childSlug)}
+                      {link['ciesin:spatial_level'] && (
+                        <span class="child-level">{link['ciesin:spatial_level']}</span>
+                      )}
+                    </span>
                     <span class="arrow" aria-hidden="true">→</span>
                   </a>
                 );
@@ -166,6 +190,29 @@ const breadcrumbSegments = [
 </BaseLayout>
 
 <style>
+  .spatial-chip {
+    display: inline-block;
+    font-size: 0.5em;
+    font-weight: 500;
+    vertical-align: middle;
+    margin-left: 0.6em;
+    padding: 0.2em 0.6em;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    background: var(--color-bg);
+    text-transform: lowercase;
+    letter-spacing: 0.02em;
+  }
+
+  .child-level {
+    font-size: 0.8em;
+    font-weight: 400;
+    color: var(--color-text-muted);
+    margin-left: 0.45em;
+    text-transform: lowercase;
+  }
+
   .collection-desc {
     color: var(--color-text-muted);
     margin-bottom: 2rem;

@@ -22,7 +22,7 @@ from pathlib import Path
 import pystac
 from pystac import layout
 
-from .config import R2_PUBLIC_URL, CF_IMAGES_ZONE
+from .config import R2_PUBLIC_URL
 from .manifest import ManifestRow
 
 
@@ -35,7 +35,7 @@ def build_catalog(
     output_dir: str | Path,
     catalog_id: str = "ciesin-map-archive",
     catalog_title: str = "CIESIN Map Archive",
-    catalog_description: str = "Searchable archive of high-resolution maps from CIESIN, Columbia University",
+    catalog_description: str = "Browsable archive of high-resolution static maps produced by CIESIN at Columbia University",
 ) -> pystac.Catalog:
     """Build a hierarchical STAC catalog and write to disk."""
     output_dir = Path(output_dir)
@@ -97,7 +97,7 @@ def _build_aoi_hierarchy(
         coll = pystac.Collection(
             id="-".join(prefix),
             title=display_name,
-            description=f"Maps covering {breadcrumb}",
+            description=f"Maps of {breadcrumb}",
             extent=_compute_extent(prows),
             license=first_row.license,
             providers=_build_providers(first_row.source_attribution),
@@ -105,10 +105,24 @@ def _build_aoi_hierarchy(
         coll.extra_fields["ciesin:theme"] = first_row.theme.lower()
         coll.extra_fields["ciesin:admin_path"] = list(prefix)
 
+        # Derive spatial_level from rows whose deepest admin exactly matches this
+        # prefix depth — those rows tell us what geographic unit type this is.
+        exact_rows = [r for r in prows if len(r.admin_path) == len(prefix)]
+        current_spatial_level = exact_rows[0].spatial_level if (exact_rows and exact_rows[0].spatial_level) else ""
+        if current_spatial_level:
+            coll.extra_fields["ciesin:spatial_level"] = current_spatial_level
+
+        # Build a path parallel to admin_path using already-built ancestor collections
+        # (parents are always processed before children due to sorted-by-depth order).
+        coll.extra_fields["ciesin:spatial_level_path"] = [
+            aoi_collections[prefix[:d]].extra_fields.get("ciesin:spatial_level", "")
+            for d in range(1, len(prefix))
+        ] + [current_spatial_level]
+
         parent: pystac.STACObject = (
             theme_collection if len(prefix) == 1 else aoi_collections[prefix[:-1]]
         )
-        parent.add_child(coll)
+        _add_child_annotated(parent, coll)
         aoi_collections[prefix] = coll
 
     # 3. Add items to their exact-level (leaf) collection
@@ -216,6 +230,13 @@ def _build_item(row: ManifestRow) -> pystac.Item:
         }.items() if v
     }
 
+    pixel_props = {
+        k: v for k, v in {
+            "ciesin:width_px": row.width_px,
+            "ciesin:height_px": row.height_px,
+        }.items() if v is not None
+    }
+
     item = pystac.Item(
         id=row.item_id,
         geometry=geometry,
@@ -236,6 +257,7 @@ def _build_item(row: ManifestRow) -> pystac.Item:
             "ciesin:filename_normalized": row.filename_normalized,
             **admin_props,
             **spatial_props,
+            **pixel_props,
         },
     )
 
@@ -248,28 +270,32 @@ def _build_item(row: ManifestRow) -> pystac.Item:
         pystac.Asset(
             href=asset_href,
             media_type=_guess_media_type(row.filename),
-            title="Original static map",
+            title="Full-resolution static map",
             roles=["data", "visual"],
         ),
     )
 
-    if CF_IMAGES_ZONE and R2_PUBLIC_URL:
-        item.add_asset(
-            "thumbnail",
-            pystac.Asset(
-                href=_cf_image_url(asset_href, "w=600,h=400,fit=scale-down,g=auto,f=auto"),
-                media_type="image/webp",
-                title="Thumbnail",
-                roles=["thumbnail"],
-            ),
-        )
+    # overview: pre-generated JPEG (only for images that exceeded CF Images source limits)
+    if row.overview_key and R2_PUBLIC_URL:
         item.add_asset(
             "overview",
             pystac.Asset(
-                href=_cf_image_url(asset_href, "w=1200,fit=scale-down,f=auto,q=85"),
-                media_type="image/webp",
-                title="Overview (1200px)",
+                href=f"{R2_PUBLIC_URL}/{row.overview_key}",
+                media_type=pystac.MediaType.JPEG,
+                title="Medium-resolution overview",
                 roles=["overview"],
+            ),
+        )
+
+    # thumbnail: pre-generated JPEG (generated for all images by `archive overviews`)
+    if row.thumbnail_key and R2_PUBLIC_URL:
+        item.add_asset(
+            "thumbnail",
+            pystac.Asset(
+                href=f"{R2_PUBLIC_URL}/{row.thumbnail_key}",
+                media_type=pystac.MediaType.JPEG,
+                title="Low-resolution thumbnail",
+                roles=["thumbnail"],
             ),
         )
 
@@ -280,13 +306,19 @@ def _build_item(row: ManifestRow) -> pystac.Item:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _cf_image_url(asset_href: str, options: str) -> str:
-    """Build a Cloudflare Images transform URL.
+def _add_child_annotated(parent: pystac.STACObject, coll: pystac.Collection) -> None:
+    """Add *coll* as a child of *parent* and copy ciesin:spatial_level onto the link.
 
-    Pattern: {CF_IMAGES_ZONE}/cdn-cgi/image/<options>/<source-image-url>
-    See: https://developers.cloudflare.com/images/transform-images/transform-via-url/
+    Embedding spatial_level directly in the child link lets the browse page
+    label subcollection rows without fetching each child collection separately.
     """
-    return f"{CF_IMAGES_ZONE}/cdn-cgi/image/{options}/{asset_href}"
+    parent.add_child(coll)
+    spatial_level = coll.extra_fields.get("ciesin:spatial_level")
+    if spatial_level:
+        for link in parent.links:
+            if link.rel == "child" and link.target is coll:
+                link.extra_fields["ciesin:spatial_level"] = spatial_level
+                break
 
 
 def _guess_media_type(filename: str) -> str:

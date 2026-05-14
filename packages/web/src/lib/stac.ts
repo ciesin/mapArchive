@@ -21,6 +21,8 @@ export interface STACCollection {
   links: STACLink[];
   'ciesin:theme'?: string;
   'ciesin:admin_path'?: string[];
+  'ciesin:spatial_level'?: string;
+  'ciesin:spatial_level_path'?: string[];
 }
 
 export interface STACItem {
@@ -65,6 +67,7 @@ export interface STACLink {
   href: string;
   type?: string;
   title?: string;
+  'ciesin:spatial_level'?: string;
 }
 
 export interface GeoJSONGeometry {

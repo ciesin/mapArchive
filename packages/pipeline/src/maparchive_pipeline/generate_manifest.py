@@ -289,17 +289,20 @@ def build_manifest_row(drive_file, parsed, normalize_admin0=True):
 
     this_admin = len(present_outer) - 1  # admin0 only = 0, admin0+admin1 = 1, etc.
 
-    location_str = ", ".join(present_inner) if len(present_inner) > 1 else (present_inner[0] if present_inner else country_name)
+    # admin1–4 innermost-first, with ISO3 admin0 appended; no full country name
+    inner_sub = [admins[f"admin{i}"] for i in range(4, 0, -1) if admins[f"admin{i}"]]
+    location_parts = inner_sub + [admins["admin0"]]
+    location_str = ", ".join(location_parts)
     year = date[:4] if date else ""
     use_label = use_case.replace("-", " ").title()
 
-    title = f"{use_label}: {location_str}, {country_name}"
+    title = f"{use_label}: {location_str}"
     if year:
         title += f" ({year})"
 
     desc_parts = [f"{use_label} map"]
     if location_str:
-        desc_parts.append(f"covering {location_str}, {country_name}")
+        desc_parts.append(f"covering {location_str}")
     if date:
         desc_parts.append(f"dated {date}")
     if parsed.get("page_num"):
@@ -311,6 +314,11 @@ def build_manifest_row(drive_file, parsed, normalize_admin0=True):
         kw.add(use_case.replace("-", " "))
     for lvl in present_outer:
         kw.add(lvl.lower())
+    page_size = (parsed.get("page_size") or "").lower()
+    if page_size:
+        kw.add(page_size)
+    if year:
+        kw.add(year)
     keywords = ",".join(sorted(kw))
 
     return {

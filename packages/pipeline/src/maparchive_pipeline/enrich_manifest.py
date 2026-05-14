@@ -119,6 +119,12 @@ def enrich_rows(rows: list[dict], index: dict) -> tuple[list[dict], dict]:
             merged["bbox_south"] = record["ymin"]
             merged["bbox_east"] = record["xmax"]
             merged["bbox_north"] = record["ymax"]
+            spatial_level = record.get("spatial_level", "")
+            if spatial_level:
+                kws = [k for k in merged.get("keywords", "").split(",") if k.strip()]
+                if spatial_level not in kws:
+                    kws.append(spatial_level)
+                merged["keywords"] = ",".join(sorted(kws))
             enriched.append(merged)
             stats["matched"] += 1
         else:

@@ -36,6 +36,11 @@ class ManifestRow(BaseModel):
     # Populated by enrich step
     spatial_level: str = ""  # e.g. "zonesante", "airesante"
     grid3id: str = ""        # GRID3 boundary identifier
+    # Populated by overviews step
+    width_px: int | None = None
+    height_px: int | None = None
+    overview_key: str | None = None    # R2 key for pre-generated overview JPEG
+    thumbnail_key: str | None = None   # R2 key for pre-generated thumbnail JPEG
 
     @field_validator("admin0")
     @classmethod
@@ -108,6 +113,19 @@ class ManifestRow(BaseModel):
         theme_slug = self.theme.lower()
         admin_subpath = "/".join(a.lower() for a in self.admin_path)
         return f"maps/{theme_slug}/{admin_subpath}/{self.filename_normalized}"
+
+
+def save_manifest(rows: list[ManifestRow], path: str | Path) -> None:
+    """Write manifest rows back to a CSV file."""
+    if not rows:
+        return
+    path = Path(path)
+    fieldnames = list(rows[0].model_fields.keys())
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({k: ("" if v is None else v) for k, v in row.model_dump().items()})
 
 
 def load_manifest(path: str | Path) -> list[ManifestRow]:

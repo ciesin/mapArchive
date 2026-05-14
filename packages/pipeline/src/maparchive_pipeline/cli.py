@@ -2,7 +2,9 @@
 
 import click
 
-from .manifest import load_manifest
+from pathlib import Path
+
+from .manifest import load_manifest, save_manifest
 from .stac_builder import build_catalog
 from .config import DEFAULT_OUTPUT_DIR, PIPELINE_ROOT
 
@@ -50,12 +52,20 @@ def build(manifest: str, output: str):
               help="Show what would be uploaded without transferring (rclone only).")
 @click.option("--r2-prefix", default="maps", show_default=True,
               help="Key prefix (subdirectory) within the R2 bucket.")
-def upload(manifest: str, local_dir: str, use_rclone: bool, rclone_remote, transfers, dry_run, r2_prefix):
+@click.option("--with-overviews", is_flag=True,
+              help="Also upload overview JPEGs co-located in --local-dir (boto3 only).")
+@click.option("--with-thumbnails", is_flag=True,
+              help="Also upload thumbnail JPEGs co-located in --local-dir (boto3 only).")
+def upload(manifest: str, local_dir: str, use_rclone: bool, rclone_remote, transfers, dry_run, r2_prefix, with_overviews, with_thumbnails):
     """Upload map files to Cloudflare R2.
 
     By default uses boto3 (per-file, good for small/incremental uploads).
     Pass --rclone for bulk uploads — parallel transfers, automatic skip of
     already-uploaded files.
+
+    Pass --with-overviews and/or --with-thumbnails to also upload the pre-generated
+    assets produced by `archive overviews` (they live alongside the originals in
+    --local-dir).  These uploads always use boto3 regardless of --rclone.
     """
     if use_rclone:
         from .rclone_upload import rclone_copy
@@ -72,6 +82,19 @@ def upload(manifest: str, local_dir: str, use_rclone: bool, rclone_remote, trans
         click.echo(f"Uploading {len(rows)} files to R2...")
         keys = upload_manifest_files(rows, local_dir)
         click.echo(f"  {len(keys)} files uploaded")
+
+    if with_overviews or with_thumbnails:
+        rows = load_manifest(manifest)
+
+    if with_overviews:
+        from .r2_upload import upload_overview_files
+        click.echo(f"Uploading overview images from {local_dir}...")
+        keys = upload_overview_files(rows, local_dir)
+
+    if with_thumbnails:
+        from .r2_upload import upload_thumbnail_files
+        click.echo(f"Uploading thumbnail images from {local_dir}...")
+        keys = upload_thumbnail_files(rows, local_dir)
 
 
 @main.command("setup-rclone")
@@ -197,6 +220,70 @@ def enrich(manifest: str, spatial_dir: str, output, dry_run: bool):
         output_path=output,
         dry_run=dry_run,
     )
+
+
+@main.command()
+@click.option("--manifest", "-m", required=True, type=click.Path(exists=True),
+              help="Manifest CSV (output of `archive enrich` or `archive generate`).")
+@click.option("--input-dir", "-i", required=True, type=click.Path(exists=True),
+              help="Local directory containing downloaded map files.")
+@click.option("--no-thumbnails", is_flag=True,
+              help="Skip thumbnail generation.")
+@click.option("--max-px", default=4000, show_default=True,
+              help="Maximum dimension (px) of the output overview JPEG.")
+@click.option("--workers", default=0, show_default=True,
+              help="Parallel worker threads (0 = os.cpu_count()).")
+@click.option("--output", "-o", default=None, type=click.Path(),
+              help="Output manifest CSV path (default: <manifest_stem>_overviews.csv).")
+@click.option("--manifest-only", "manifest_only", is_flag=True,
+              help="Record existing overview/thumbnail keys without generating new images.")
+def overviews(manifest: str, input_dir: str, no_thumbnails: bool, max_px: int, workers: int, output, manifest_only: bool):
+    """Generate overview and thumbnail JPEGs for map images.
+
+    Overviews and thumbnails are written alongside the originals in --input-dir,
+    keeping all assets for each map co-located.
+
+    Overviews (max --max-px on longest side) are only generated for images whose
+    area exceeds 100 MP or whose longest side exceeds 50,000 px.  Thumbnails
+    (600x400 max) are generated for every image; when an overview exists it is used
+    as the thumbnail source.
+
+    Writes an updated manifest CSV with width_px, height_px, overview_key, and
+    thumbnail_key populated.  Pass that manifest to `archive build` and
+    `archive upload` to publish the assets.
+
+    Pass --manifest-only to skip image generation entirely: dimensions are still
+    measured and any already-generated sibling files are recorded in the manifest.
+
+    This command is idempotent — already-generated files are skipped.
+    """
+    from .overview_generator import generate_overviews
+
+    rows = load_manifest(manifest)
+    if manifest_only:
+        click.echo(f"Scanning {len(rows)} images for existing assets (manifest-only)...")
+    else:
+        click.echo(f"Processing {len(rows)} images (input: {input_dir}, workers: {workers or 'cpu_count'})...")
+
+    enriched = generate_overviews(
+        rows,
+        input_dir=Path(input_dir),
+        generate_thumbnails=not no_thumbnails,
+        max_px=max_px,
+        workers=workers,
+        manifest_only=manifest_only,
+    )
+
+    if output is None:
+        p = Path(manifest)
+        output = str(p.parent / f"{p.stem}_overviews.csv")
+
+    save_manifest(enriched, output)
+    n_overviews = sum(1 for r in enriched if r.overview_key)
+    n_thumbnails = sum(1 for r in enriched if r.thumbnail_key)
+    n_dims = sum(1 for r in enriched if r.width_px is not None)
+    click.echo(f"  {n_dims} images measured, {n_overviews} overviews, {n_thumbnails} thumbnails{'found' if manifest_only else 'generated'}")
+    click.echo(f"  Manifest saved: {output}")
 
 
 @main.command()

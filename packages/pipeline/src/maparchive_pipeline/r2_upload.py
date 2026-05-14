@@ -106,3 +106,56 @@ def upload_manifest_files(
         print(f"  Failed: {', '.join(failed[:10])}" + (" ..." if len(failed) > 10 else ""))
 
     return uploaded
+
+
+def _upload_sibling_files(
+    rows: list[ManifestRow],
+    local_dir: str | Path,
+    key_attr: str,
+    suffix: str,
+    label: str,
+) -> list[str]:
+    """Upload sibling assets (overviews, thumbnails) that live alongside originals.
+
+    Files are located at local_dir/{theme}/{admin_path...}/{stem}{suffix}.
+    Only rows where key_attr is non-empty are processed.
+    """
+    local_dir = Path(local_dir)
+    client = get_r2_client()
+    uploaded: list[str] = []
+    skipped: int = 0
+
+    target_rows = [r for r in rows if getattr(r, key_attr)]
+    total = len(target_rows)
+
+    for i, row in enumerate(target_rows, 1):
+        stem = Path(row.filename_normalized).stem
+        local_path = local_dir / row.theme.lower()
+        for admin in row.admin_path:
+            local_path = local_path / admin.lower()
+        local_path = local_path / f"{stem}{suffix}"
+
+        r2_key = getattr(row, key_attr)
+        print(f"  [{i}/{total}] {r2_key}", end="\r")
+
+        if not local_path.exists():
+            print(f"\n  ! not found: {local_path}")
+            skipped += 1
+            continue
+
+        upload_file(client, local_path, r2_key, "image/jpeg")
+        uploaded.append(r2_key)
+
+    print()
+    print(f"  {label}: {len(uploaded)} uploaded, {skipped} skipped")
+    return uploaded
+
+
+def upload_overview_files(rows: list[ManifestRow], local_dir: str | Path) -> list[str]:
+    """Upload pre-generated overview JPEGs from local_dir (co-located with originals)."""
+    return _upload_sibling_files(rows, local_dir, "overview_key", "_overview.jpg", "Overviews")
+
+
+def upload_thumbnail_files(rows: list[ManifestRow], local_dir: str | Path) -> list[str]:
+    """Upload pre-generated thumbnail JPEGs from local_dir (co-located with originals)."""
+    return _upload_sibling_files(rows, local_dir, "thumbnail_key", "_thumbnail.jpg", "Thumbnails")

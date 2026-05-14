@@ -1,6 +1,7 @@
 ---
 interface BreadcrumbSegment {
   label: string;
+  spatialLevel?: string;
   href?: string;
 }
 
@@ -16,7 +17,27 @@ const { segments } = Astro.props;
   {segments.map((seg) => (
     <>
       <span aria-hidden="true">/</span>
-      {seg.href ? <a href={seg.href}>{seg.label}</a> : <span>{seg.label}</span>}
+      {seg.href ? (
+        <a href={seg.href}>
+          {seg.label}
+          {seg.spatialLevel && <span class="bc-level">{seg.spatialLevel}</span>}
+        </a>
+      ) : (
+        <span>
+          {seg.label}
+          {seg.spatialLevel && <span class="bc-level">{seg.spatialLevel}</span>}
+        </span>
+      )}
     </>
   ))}
 </nav>
+
+<style>
+  .bc-level {
+    font-size: 0.72em;
+    font-weight: 400;
+    opacity: 0.55;
+    margin-left: 0.3em;
+    text-transform: lowercase;
+  }
+</style>

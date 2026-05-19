@@ -275,25 +275,23 @@ def _build_item(row: ManifestRow) -> pystac.Item:
         ),
     )
 
-    # overview: pre-generated JPEG (only for images that exceeded CF Images source limits)
     if row.overview_key and R2_PUBLIC_URL:
         item.add_asset(
             "overview",
             pystac.Asset(
                 href=f"{R2_PUBLIC_URL}/{row.overview_key}",
-                media_type=pystac.MediaType.JPEG,
+                media_type="image/webp",
                 title="Medium-resolution overview",
                 roles=["overview"],
             ),
         )
 
-    # thumbnail: pre-generated JPEG (generated for all images by `archive overviews`)
     if row.thumbnail_key and R2_PUBLIC_URL:
         item.add_asset(
             "thumbnail",
             pystac.Asset(
                 href=f"{R2_PUBLIC_URL}/{row.thumbnail_key}",
-                media_type=pystac.MediaType.JPEG,
+                media_type="image/webp",
                 title="Low-resolution thumbnail",
                 roles=["thumbnail"],
             ),

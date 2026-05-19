@@ -53,9 +53,9 @@ def build(manifest: str, output: str):
 @click.option("--r2-prefix", default="maps", show_default=True,
               help="Key prefix (subdirectory) within the R2 bucket.")
 @click.option("--with-overviews", is_flag=True,
-              help="Also upload overview JPEGs co-located in --local-dir (boto3 only).")
+              help="Also upload overview WebPs co-located in --local-dir (boto3 only).")
 @click.option("--with-thumbnails", is_flag=True,
-              help="Also upload thumbnail JPEGs co-located in --local-dir (boto3 only).")
+              help="Also upload thumbnail WebPs co-located in --local-dir (boto3 only).")
 def upload(manifest: str, local_dir: str, use_rclone: bool, rclone_remote, transfers, dry_run, r2_prefix, with_overviews, with_thumbnails):
     """Upload map files to Cloudflare R2.
 
@@ -64,7 +64,7 @@ def upload(manifest: str, local_dir: str, use_rclone: bool, rclone_remote, trans
     already-uploaded files.
 
     Pass --with-overviews and/or --with-thumbnails to also upload the pre-generated
-    assets produced by `archive overviews` (they live alongside the originals in
+    WebP assets produced by `archive overviews` (they live alongside the originals in
     --local-dir).  These uploads always use boto3 regardless of --rclone.
     """
     if use_rclone:
@@ -230,7 +230,7 @@ def enrich(manifest: str, spatial_dir: str, output, dry_run: bool):
 @click.option("--no-thumbnails", is_flag=True,
               help="Skip thumbnail generation.")
 @click.option("--max-px", default=4000, show_default=True,
-              help="Maximum dimension (px) of the output overview JPEG.")
+              help="Maximum dimension (px) of the output overview WebP.")
 @click.option("--workers", default=0, show_default=True,
               help="Parallel worker threads (0 = os.cpu_count()).")
 @click.option("--output", "-o", default=None, type=click.Path(),
@@ -238,15 +238,15 @@ def enrich(manifest: str, spatial_dir: str, output, dry_run: bool):
 @click.option("--manifest-only", "manifest_only", is_flag=True,
               help="Record existing overview/thumbnail keys without generating new images.")
 def overviews(manifest: str, input_dir: str, no_thumbnails: bool, max_px: int, workers: int, output, manifest_only: bool):
-    """Generate overview and thumbnail JPEGs for map images.
+    """Generate overview and thumbnail WebP images for map images.
 
     Overviews and thumbnails are written alongside the originals in --input-dir,
     keeping all assets for each map co-located.
 
     Overviews (max --max-px on longest side) are only generated for images whose
     area exceeds 100 MP or whose longest side exceeds 50,000 px.  Thumbnails
-    (600x400 max) are generated for every image; when an overview exists it is used
-    as the thumbnail source.
+    (400 px wide, height preserves ISO 216 aspect ratio) are generated for every
+    image; when an overview exists it is used as the thumbnail source.
 
     Writes an updated manifest CSV with width_px, height_px, overview_key, and
     thumbnail_key populated.  Pass that manifest to `archive build` and

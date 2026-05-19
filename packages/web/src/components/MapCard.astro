@@ -17,7 +17,15 @@ const badgeClass = theme ? `badge badge-${theme.replaceAll(':', '-')}` : 'badge'
 <a href={href} class="card">
   <div class="card-image-wrapper">
     {thumbnailUrl ? (
-      <img src={thumbnailUrl} alt={title} class="card-image" loading="lazy" />
+      <img
+        src={thumbnailUrl}
+        alt={title}
+        class="card-image"
+        loading="lazy"
+        decoding="async"
+        width="400"
+        height="283"
+      />
     ) : (
       <div class="card-image card-image-placeholder"></div>
     )}

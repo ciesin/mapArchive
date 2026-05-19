@@ -1,9 +1,13 @@
-"""Generate overview and thumbnail JPEGs for map images.
+"""Generate overview and thumbnail WebP images for map images.
 
 Overviews are generated only for images that exceed Cloudflare Images input limits
 (100 MP area or 50 000 px on any side).  Thumbnails are generated for every image
 and are sourced from the overview when one exists (more efficient), otherwise from
 the original.
+
+Both overviews and thumbnails are written as WebP for smaller file sizes at
+equivalent perceived quality.  Thumbnails are width-constrained only so that the
+ISO 216 aspect ratio of each map is preserved naturally.
 
 Processing is parallelised with ThreadPoolExecutor — the heavy lifting is done by
 ImageMagick subprocesses so threads are appropriate (no GIL contention).
@@ -24,8 +28,9 @@ _CF_MAX_AREA = 1  # px^2
 _CF_MAX_DIM = 1         # px on any side
 
 
-_THUMBNAIL_W = 600
-_THUMBNAIL_H = 400
+# Width-only constraint: height is derived from each map's actual aspect ratio.
+# Targets display at the grid's ~280px column minimum with ≈1.4× retina headroom.
+_THUMBNAIL_MAX_W = 400
 
 
 def generate_overviews(
@@ -106,14 +111,14 @@ def _process_row(
 
     updates: dict = {"width_px": w, "height_px": h}
 
-    overview_path = _sibling_path(local_path, "_overview.jpg")
-    thumb_path = _sibling_path(local_path, "_thumbnail.jpg")
+    overview_path = _sibling_path(local_path, "_overview.webp")
+    thumb_path = _sibling_path(local_path, "_thumbnail.webp")
 
     if manifest_only:
         if overview_path.exists():
-            updates["overview_key"] = _sibling_r2_key(row, "_overview.jpg")
+            updates["overview_key"] = _sibling_r2_key(row, "_overview.webp")
         if generate_thumbnails and thumb_path.exists():
-            updates["thumbnail_key"] = _sibling_r2_key(row, "_thumbnail.jpg")
+            updates["thumbnail_key"] = _sibling_r2_key(row, "_thumbnail.webp")
         return row.model_copy(update=updates), logs
 
     if _needs_overview(w, h):
@@ -126,7 +131,7 @@ def _process_row(
             except subprocess.CalledProcessError as exc:
                 logs.append(f"! convert failed ({local_path.name}): {exc.stderr.strip()}")
                 return row.model_copy(update=updates), logs
-        updates["overview_key"] = _sibling_r2_key(row, "_overview.jpg")
+        updates["overview_key"] = _sibling_r2_key(row, "_overview.webp")
 
     if generate_thumbnails:
         thumb_source = overview_path if overview_path.exists() else local_path
@@ -136,7 +141,7 @@ def _process_row(
             except subprocess.CalledProcessError as exc:
                 logs.append(f"! thumbnail failed ({local_path.name}): {exc.stderr.strip()}")
                 return row.model_copy(update=updates), logs
-        updates["thumbnail_key"] = _sibling_r2_key(row, "_thumbnail.jpg")
+        updates["thumbnail_key"] = _sibling_r2_key(row, "_thumbnail.webp")
 
     return row.model_copy(update=updates), logs
 
@@ -176,12 +181,14 @@ def _needs_overview(w: int, h: int) -> bool:
 
 
 def _convert(src: Path, dest: Path, max_px: int) -> None:
-    """Resize src to max_px on its longest side and write a JPEG to dest."""
+    """Resize src to max_px on its longest side and write a WebP to dest."""
     subprocess.run(
         [
             "convert", f"{src}[0]",
+            "-strip",
+            "-define", "webp:method=4",
             "-resize", f"{max_px}x{max_px}>",
-            "-quality", "90",
+            "-quality", "85",
             str(dest),
         ],
         capture_output=True,
@@ -191,12 +198,14 @@ def _convert(src: Path, dest: Path, max_px: int) -> None:
 
 
 def _make_thumbnail(src: Path, dest: Path) -> None:
-    """Downscale src to fit within _THUMBNAIL_W x _THUMBNAIL_H, write JPEG."""
+    """Downscale src to _THUMBNAIL_MAX_W wide (height proportional) and write WebP to dest."""
     subprocess.run(
         [
             "convert", f"{src}[0]",
-            "-resize", f"{_THUMBNAIL_W}x{_THUMBNAIL_H}>",
-            "-quality", "85",
+            "-strip",
+            "-define", "webp:method=4",
+            "-resize", f"{_THUMBNAIL_MAX_W}x>",
+            "-quality", "75",
             str(dest),
         ],
         capture_output=True,

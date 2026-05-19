@@ -39,8 +39,8 @@ class ManifestRow(BaseModel):
     # Populated by overviews step
     width_px: int | None = None
     height_px: int | None = None
-    overview_key: str | None = None    # R2 key for pre-generated overview JPEG
-    thumbnail_key: str | None = None   # R2 key for pre-generated thumbnail JPEG
+    overview_key: str | None = None    # R2 key for pre-generated overview WebP
+    thumbnail_key: str | None = None   # R2 key for pre-generated thumbnail WebP
 
     @field_validator("admin0")
     @classmethod
